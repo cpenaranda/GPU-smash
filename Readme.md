@@ -31,11 +31,11 @@ Smash contains external code. Compression libraries have been added as submodule
 An easy way to compile this repository is:
 
 ```
-git clone git@github.com:cpenaranda/smash.git
-cd smash
-git submodule update --init --force
+git clone git@github.com:cpenaranda/GPU-smash.git
+cd GPU-smash
+git submodule update --init --force --recursive
 mkdir build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake -DCMAKE_BUILD_TYPE:STRING=Release -DCUDA_TOOLKIT_ROOT_DIR:STRING=/nfs2/LIBS/x86_64/ubuntu20.04/CUDA/11.0/ ..
 cmake --build . --config Release --target all
 ```

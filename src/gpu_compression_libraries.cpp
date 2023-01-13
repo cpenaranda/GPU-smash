@@ -19,6 +19,10 @@
 #include <nvcomp_snappy_library.hpp>
 #include <nvcomp_zstd_library.hpp>
 #endif  // NVCOMP
+#ifdef DIETGPU
+#include <dietgpu_ans_library.hpp>
+#include <dietgpu_float_library.hpp>
+#endif  // DIETGPU
 #include <gpu_compression_libraries.hpp>
 
 GpuCompressionLibrary *GpuCompressionLibraries::GetCompressionLibrary(
@@ -60,6 +64,10 @@ GpuCompressionLibraries::GpuCompressionLibraries() {
   map_["nvcomp-snappy"] = []() { return new NvcompSnappyLibrary(); };
   map_["nvcomp-zstd"] = []() { return new NvcompZstdLibrary(); };
 #endif  // NVCOMP
+#ifdef DIETGPU
+  map_["dietgpu-ans"] = []() { return new DietgpuAnsLibrary(); };
+  map_["dietgpu-float"] = []() { return new DietgpuFloatLibrary(); };
+#endif  // DIETGPU
 }
 
 GpuCompressionLibraries::~GpuCompressionLibraries() {}

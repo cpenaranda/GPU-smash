@@ -1,0 +1,3 @@
+[submodule "compression_libraries/dietgpu_/dietgpu"]
+	path = compression_libraries/dietgpu_/dietgpu
+	url = git@github.com:cpenaranda/dietgpu.git

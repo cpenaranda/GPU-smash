@@ -52,6 +52,7 @@ set(ALLOW_DUPLICATE_CUSTOM_TARGETS TRUE)
 find_package(CUDA REQUIRED QUIET)
 
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-Wno-deprecated-gpu-targets")
+set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "--disable-warnings")
 
 if(${CUDA_VERSION_MAJOR} VERSION_LESS 8)
   # CUDA < 8
