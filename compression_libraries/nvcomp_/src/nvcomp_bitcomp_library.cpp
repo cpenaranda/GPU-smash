@@ -134,7 +134,7 @@ std::string NvcompBitcompLibrary::GetFlagsName(const uint8_t &flags) {
   return result;
 }
 
-NvcompBitcompLibrary::NvcompBitcompLibrary() {
+NvcompBitcompLibrary::NvcompBitcompLibrary(const uint64_t &batch_size) {
   number_of_flags_ = 9;
   flags_ = new std::string[number_of_flags_];
   flags_[0] = "Char";

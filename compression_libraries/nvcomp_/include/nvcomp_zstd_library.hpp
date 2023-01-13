@@ -53,6 +53,6 @@ class NvcompZstdLibrary : public GpuCompressionLibrary {
       uint8_t* minimum_chunk_size = nullptr,
       uint8_t* maximum_chunk_size = nullptr);
 
-  NvcompZstdLibrary();
+  NvcompZstdLibrary(const uint64_t& batch_size = 1000);
   ~NvcompZstdLibrary();
 };

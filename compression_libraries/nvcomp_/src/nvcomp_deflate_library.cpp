@@ -15,7 +15,7 @@
 bool NvcompDeflateLibrary::CheckOptions(GpuOptions *options,
                                         const bool &compressor) {
   bool result =
-      GpuCompressionLibrary::CheckChunkSize("nvcomp-deflate", options, 12, 24);
+      GpuCompressionLibrary::CheckChunkSize("nvcomp-deflate", options, 12, 16);
   if (result) {
     if ((result = GpuCompressionLibrary::CheckCompressionLevel(
              "nvcomp-gdeflate", options, 0, 1))) {
@@ -105,22 +105,23 @@ bool NvcompDeflateLibrary::GetChunkSizeInformation(
     std::vector<std::string> *chunk_size_information,
     uint8_t *minimum_chunk_size, uint8_t *maximum_chunk_size) {
   if (minimum_chunk_size) *minimum_chunk_size = 12;
-  if (maximum_chunk_size) *maximum_chunk_size = 24;
+  if (maximum_chunk_size) *maximum_chunk_size = 16;
   if (chunk_size_information) {
     chunk_size_information->clear();
-    chunk_size_information->push_back("Available values [12-24]");
+    chunk_size_information->push_back("Available values [12-16]");
     chunk_size_information->push_back("[compression/decompression]");
   }
   return true;
 }
 
-NvcompDeflateLibrary::NvcompDeflateLibrary() {
-  nvcomp_ = new NvcompTemplate(
-      nvcompBatchedDeflateCompressGetTempSize,
-      nvcompBatchedDeflateCompressGetMaxOutputChunkSize,
-      nvcompBatchedDeflateDecompressGetTempSize,
-      nvcompBatchedDeflateGetDecompressSizeAsync,
-      nvcompBatchedDeflateCompressAsync, nvcompBatchedDeflateDecompressAsync);
+NvcompDeflateLibrary::NvcompDeflateLibrary(const uint64_t &batch_size) {
+  nvcomp_ =
+      new NvcompTemplate(nvcompBatchedDeflateCompressGetTempSize,
+                         nvcompBatchedDeflateCompressGetMaxOutputChunkSize,
+                         nvcompBatchedDeflateDecompressGetTempSize,
+                         nvcompBatchedDeflateGetDecompressSizeAsync,
+                         nvcompBatchedDeflateCompressAsync,
+                         nvcompBatchedDeflateDecompressAsync, batch_size);
 }
 
 NvcompDeflateLibrary::~NvcompDeflateLibrary() { delete nvcomp_; }

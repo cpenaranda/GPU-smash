@@ -130,7 +130,7 @@ std::string NvcompLz4Library::GetFlagsName(const uint8_t &flags) {
   return result;
 }
 
-NvcompLz4Library::NvcompLz4Library() {
+NvcompLz4Library::NvcompLz4Library(const uint64_t &batch_size) {
   number_of_flags_ = 7;
   flags_ = new std::string[number_of_flags_];
   flags_[0] = "Char";
@@ -146,7 +146,7 @@ NvcompLz4Library::NvcompLz4Library() {
                                nvcompBatchedLZ4DecompressGetTempSize,
                                nvcompBatchedLZ4GetDecompressSizeAsync,
                                nvcompBatchedLZ4CompressAsync,
-                               nvcompBatchedLZ4DecompressAsync);
+                               nvcompBatchedLZ4DecompressAsync, batch_size);
 }
 
 NvcompLz4Library::~NvcompLz4Library() {

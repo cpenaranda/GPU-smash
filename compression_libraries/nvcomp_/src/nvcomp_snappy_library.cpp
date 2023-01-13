@@ -99,13 +99,13 @@ bool NvcompSnappyLibrary::GetChunkSizeInformation(
   return true;
 }
 
-NvcompSnappyLibrary::NvcompSnappyLibrary() {
+NvcompSnappyLibrary::NvcompSnappyLibrary(const uint64_t &batch_size) {
   nvcomp_ = new NvcompTemplate(nvcompBatchedSnappyCompressGetTempSize,
                                nvcompBatchedSnappyCompressGetMaxOutputChunkSize,
                                nvcompBatchedSnappyDecompressGetTempSize,
                                nvcompBatchedSnappyGetDecompressSizeAsync,
                                nvcompBatchedSnappyCompressAsync,
-                               nvcompBatchedSnappyDecompressAsync);
+                               nvcompBatchedSnappyDecompressAsync, batch_size);
 }
 
 NvcompSnappyLibrary::~NvcompSnappyLibrary() { delete nvcomp_; }

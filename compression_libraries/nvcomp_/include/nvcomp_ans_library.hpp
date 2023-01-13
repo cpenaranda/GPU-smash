@@ -45,6 +45,6 @@ class NvcompAnsLibrary : public GpuCompressionLibrary {
 
   void GetTitle();
 
-  NvcompAnsLibrary();
+  NvcompAnsLibrary(const uint64_t& batch_size = 1000);
   ~NvcompAnsLibrary();
 };

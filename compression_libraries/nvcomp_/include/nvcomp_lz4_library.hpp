@@ -62,6 +62,6 @@ class NvcompLz4Library : public GpuCompressionLibrary {
 
   std::string GetFlagsName(const uint8_t& flags);
 
-  NvcompLz4Library();
+  NvcompLz4Library(const uint64_t& batch_size = 1000);
   ~NvcompLz4Library();
 };

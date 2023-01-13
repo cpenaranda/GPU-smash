@@ -43,7 +43,7 @@
   * **Compression level** - (integer, 0-1, default 0)
     * **0** - obtains the fastest compression.
     * **1** - obtains the highest compression ratio.
-  * **Chunk size** - (integer, 12-24, default 12)
+  * **Chunk size** - (integer, 12-16, default 12)
     * Bits used to indicate the size of slices to compress.
 </details>
 
@@ -52,7 +52,7 @@
   * **Compression level** - (integer, 0-2, default 0)
     * **0** - obtains the fastest compression.
     * **2** - obtains the highest compression ratio.
-  * **Chunk size** - (integer, 12-24, default 12)
+  * **Chunk size** - (integer, 12-16, default 12)
     * Bits used to indicate the size of slices to compress.
 </details>
 
@@ -78,7 +78,7 @@
 
 <details><summary><b>nvcomp-zstd</b></summary>
 
-  * **Chunk size** - (integer, 12-24, default 12)
+  * **Chunk size** - (integer, 12-16, default 12)
     * Bits used to indicate the size of slices to compress.
 </details>
 </details>
@@ -86,13 +86,13 @@
 <details><summary><b><font size="+2">To decompress</font></b></summary>
 <details><summary><b>nvcomp-deflate</b></summary>
 
-  * **Chunk size** - (integer, 12-24, default 12)
+  * **Chunk size** - (integer, 12-16, default 12)
     * Bits used to indicate the size of slices to compress.
 </details>
 
 <details><summary><b>nvcomp-gdeflate</b></summary>
 
-  * **Chunk size** - (integer, 12-24, default 12)
+  * **Chunk size** - (integer, 12-16, default 12)
     * Bits used to indicate the size of slices to compress.
 </details>
 
@@ -110,7 +110,7 @@
 
 <details><summary><b>nvcomp-zstd</b></summary>
 
-  * **Chunk size** - (integer, 12-24, default 12)
+  * **Chunk size** - (integer, 12-16, default 12)
     * Bits used to indicate the size of slices to compress.
 </details>
 </details>

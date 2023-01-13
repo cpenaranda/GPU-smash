@@ -83,7 +83,7 @@ void NvcompAnsLibrary::GetTitle() {
       "Proprietary entropy encoder based on asymmetric numeral systems.");
 }
 
-NvcompAnsLibrary::NvcompAnsLibrary() {
+NvcompAnsLibrary::NvcompAnsLibrary(const uint64_t &batch_size) {
   nvcomp_ = new NvcompTemplate(nvcompBatchedANSCompressGetTempSize,
                                nvcompBatchedANSCompressGetMaxOutputChunkSize,
                                nvcompBatchedANSDecompressGetTempSize,

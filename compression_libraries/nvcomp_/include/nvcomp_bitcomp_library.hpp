@@ -60,6 +60,6 @@ class NvcompBitcompLibrary : public GpuCompressionLibrary {
 
   std::string GetFlagsName(const uint8_t& flags);
 
-  NvcompBitcompLibrary();
+  NvcompBitcompLibrary(const uint64_t &batch_size = 1000);
   ~NvcompBitcompLibrary();
 };

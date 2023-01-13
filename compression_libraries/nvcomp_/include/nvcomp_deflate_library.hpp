@@ -57,6 +57,6 @@ class NvcompDeflateLibrary : public GpuCompressionLibrary {
       uint8_t* minimum_chunk_size = nullptr,
       uint8_t* maximum_chunk_size = nullptr);
 
-  NvcompDeflateLibrary();
+  NvcompDeflateLibrary(const uint64_t& batch_size = 1000);
   ~NvcompDeflateLibrary();
 };
