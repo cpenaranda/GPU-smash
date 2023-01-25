@@ -25,6 +25,7 @@ inline bool NvcompTemplate<Opts_t>::InitializeCompression(
   get_temporal_size_to_compress_(batch_size_, chunk_size_, options_,
                                  &temporal_memory_size_);
   get_max_compressed_chunk_size_(chunk_size_, options_, &max_chunk_size_);
+  compressed_data_->ConfigureCompression(max_chunk_size_, stream_);
   cudaMalloc(&device_temporal_memory_, temporal_memory_size_);
   return true;
 }
@@ -50,30 +51,31 @@ inline void NvcompTemplate<Opts_t>::GetCompressedDataSize(
 
 template <typename Opts_t>
 inline void NvcompTemplate<Opts_t>::GetBatchDataInformationFromCompressedData(
-    size_t *current_batch_size, size_t **device_compressed_sizes,
+    size_t *current_batch_size, size_t **device_compressed_displacements,
     char *device_compressed_data) {
   cudaMemcpy(current_batch_size, device_compressed_data,
              sizeof(*current_batch_size), cudaMemcpyDeviceToHost);
-  *device_compressed_sizes = reinterpret_cast<size_t *>(
+  *device_compressed_displacements = reinterpret_cast<size_t *>(
       device_compressed_data + sizeof(*current_batch_size));
 }
 
 template <typename Opts_t>
 inline void NvcompTemplate<Opts_t>::GetDecompressedDataSize(
     char *device_compressed_data, uint64_t *decompressed_size) {
+  nvcompStatus_t status = nvcompSuccess;
   *decompressed_size = 0;
   size_t min_batch;
   size_t current_batch_size;
-  size_t *device_compressed_sizes;
-  nvcompStatus_t status = nvcompSuccess;
-  GetBatchDataInformationFromCompressedData(
-      &current_batch_size, &device_compressed_sizes, device_compressed_data);
+  size_t *device_compressed_displacements;
+  GetBatchDataInformationFromCompressedData(&current_batch_size,
+                                            &device_compressed_displacements,
+                                            device_compressed_data);
   device_compressed_data +=
       sizeof(current_batch_size) +
-      sizeof(*device_compressed_sizes) * current_batch_size;
-  uncompressed_data_->InitilizeDecompression(nullptr);
-  compressed_data_->InitilizeDecompression(device_compressed_data, 0,
-                                           device_compressed_sizes);
+      sizeof(*device_compressed_displacements) * current_batch_size;
+  uncompressed_data_->InitilizeDecompression(nullptr, stream_);
+  compressed_data_->InitilizeDecompression(
+      device_compressed_data, device_compressed_displacements, stream_);
   while (status == nvcompSuccess && current_batch_size) {
     min_batch =
         (batch_size_ < current_batch_size) ? batch_size_ : current_batch_size;
@@ -82,24 +84,25 @@ inline void NvcompTemplate<Opts_t>::GetDecompressedDataSize(
         compressed_data_->d_ptrs(), compressed_data_->d_sizes(),
         uncompressed_data_->d_sizes(), min_batch, stream_);
     if (status == nvcompSuccess) {
-      uncompressed_data_->GetNext(min_batch, chunk_size_, stream_,
-                                  decompressed_size);
+      uncompressed_data_->GetNextDecompression(min_batch, chunk_size_, stream_);
     }
   }
+  *decompressed_size = uncompressed_data_->size();
 }
 
 template <typename Opts_t>
 inline void NvcompTemplate<Opts_t>::GetBatchDataInformationFromUncompressedData(
     size_t *current_batch_size, uint64_t uncompressed_size,
-    size_t **device_compressed_sizes, char *device_compressed_data,
+    size_t **device_compressed_displacements, char *device_compressed_data,
     uint64_t *compresssed_size) {
   *current_batch_size = (uncompressed_size + chunk_size_ - 1) / chunk_size_;
   cudaMemcpyAsync(device_compressed_data, current_batch_size,
                   sizeof(*current_batch_size), cudaMemcpyHostToDevice, stream_);
-  *device_compressed_sizes = reinterpret_cast<size_t *>(
+  *device_compressed_displacements = reinterpret_cast<size_t *>(
       device_compressed_data + sizeof(*current_batch_size));
-  *compresssed_size = sizeof(*current_batch_size) +
-                      sizeof(*(*device_compressed_sizes)) * *current_batch_size;
+  *compresssed_size =
+      sizeof(*current_batch_size) +
+      sizeof(*(*device_compressed_displacements)) * *current_batch_size;
 }
 
 template <typename Opts_t>
@@ -110,22 +113,21 @@ inline bool NvcompTemplate<Opts_t>::Compress(char *device_uncompressed_data,
   size_t min_batch;
   nvcompStatus_t status = nvcompSuccess;
   size_t current_batch_size;
-  size_t *device_compressed_sizes;
+  size_t *device_compressed_displacements;
   GetBatchDataInformationFromUncompressedData(
-      &current_batch_size, uncompressed_size, &device_compressed_sizes,
+      &current_batch_size, uncompressed_size, &device_compressed_displacements,
       device_compressed_data, compressed_size);
   device_compressed_data +=
       sizeof(current_batch_size) +
-      sizeof(*device_compressed_sizes) * current_batch_size;
+      sizeof(*device_compressed_displacements) * current_batch_size;
   uncompressed_data_->InitilizeCompression(device_uncompressed_data,
                                            uncompressed_size);
-  compressed_data_->InitilizeCompression(device_compressed_data,
-                                         device_compressed_sizes,
-                                         max_chunk_size_, stream_);
+  compressed_data_->InitilizeCompression(
+      device_compressed_data, device_compressed_displacements, stream_);
   while ((status == nvcompSuccess) && current_batch_size) {
     min_batch =
         (batch_size_ < current_batch_size) ? batch_size_ : current_batch_size;
-    uncompressed_data_->GetNext(min_batch, chunk_size_, stream_);
+    uncompressed_data_->GetNextCompression(min_batch, chunk_size_, stream_);
     status = compress_asynchronously_(
         uncompressed_data_->d_ptrs(), uncompressed_data_->d_sizes(),
         chunk_size_, min_batch, device_temporal_memory_, temporal_memory_size_,
@@ -137,7 +139,6 @@ inline bool NvcompTemplate<Opts_t>::Compress(char *device_uncompressed_data,
     }
   }
   *compressed_size = compressed_data_->size();
-  cudaStreamSynchronize(stream_);
   return status == nvcompSuccess;
 }
 
@@ -150,37 +151,31 @@ inline bool NvcompTemplate<Opts_t>::Decompress(char *device_compressed_data,
   *decompressed_size = 0;
   size_t min_batch;
   size_t current_batch_size;
-  size_t *device_compressed_sizes;
-  GetBatchDataInformationFromCompressedData(
-      &current_batch_size, &device_compressed_sizes, device_compressed_data);
+  size_t *device_compressed_displacements;
+  GetBatchDataInformationFromCompressedData(&current_batch_size,
+                                            &device_compressed_displacements,
+                                            device_compressed_data);
   device_compressed_data +=
       sizeof(current_batch_size) +
-      sizeof(*device_compressed_sizes) * current_batch_size;
-  uncompressed_data_->InitilizeDecompression(device_decompressed_data);
+      sizeof(*device_compressed_displacements) * current_batch_size;
+  uncompressed_data_->InitilizeDecompression(device_decompressed_data, stream_);
   compressed_data_->InitilizeDecompression(
-      device_compressed_data, compressed_size, device_compressed_sizes);
+      device_compressed_data, device_compressed_displacements, stream_);
   while ((status == nvcompSuccess) && current_batch_size) {
     min_batch =
         (batch_size_ < current_batch_size) ? batch_size_ : current_batch_size;
     compressed_data_->GetNext(min_batch, stream_);
-    status = get_decompressed_size_asynchronously_(
+    uncompressed_data_->GetNextDecompression(min_batch, chunk_size_, stream_);
+    status = decompress_asynchronously_(
         compressed_data_->d_ptrs(), compressed_data_->d_sizes(),
-        uncompressed_data_->d_sizes(), min_batch, stream_);
+        uncompressed_data_->d_sizes(), uncompressed_data_->d_sizes(), min_batch,
+        device_temporal_memory_, temporal_memory_size_,
+        uncompressed_data_->d_ptrs(), statuses, stream_);
     if (status == nvcompSuccess) {
-      uncompressed_data_->GetNext(min_batch, chunk_size_, stream_,
-                                  decompressed_size);
-      status = decompress_asynchronously_(
-          compressed_data_->d_ptrs(), compressed_data_->d_sizes(),
-          uncompressed_data_->d_sizes(), uncompressed_data_->d_sizes(),
-          min_batch, device_temporal_memory_, temporal_memory_size_,
-          uncompressed_data_->d_ptrs(), statuses, stream_);
-      if (status == nvcompSuccess) {
-        compressed_data_->IncrementSizes(min_batch);
-        current_batch_size -= min_batch;
-      }
+      current_batch_size -= min_batch;
     }
   }
-  cudaStreamSynchronize(stream_);
+  *decompressed_size = uncompressed_data_->size();
   return status == nvcompSuccess;
 }
 

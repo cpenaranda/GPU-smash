@@ -87,12 +87,12 @@ class NvcompTemplate {
                                uint64_t *decompressed_size);
 
   void GetBatchDataInformationFromCompressedData(
-      size_t *current_batch_size, size_t **device_compressed_sizes,
+      size_t *current_batch_size, size_t **device_compressed_displacements,
       char *device_compressed_data);
 
   void GetBatchDataInformationFromUncompressedData(
       size_t *current_batch_size, uint64_t uncompressed_size,
-      size_t **device_compressed_sizes, char *device_compressed_data,
+      size_t **device_compressed_displacements, char *device_compressed_data,
       uint64_t *compresssed_size);
 
   bool Compress(char *device_uncompressed_data, uint64_t uncompressed_size,

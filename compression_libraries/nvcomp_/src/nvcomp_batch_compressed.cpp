@@ -14,21 +14,23 @@
 #include <nvcomp_batch_compressed.hpp>
 
 BatchDataCompressed::BatchDataCompressed(const size_t &slices)
-    : slices_(slices), compressing_(false) {
-  h_ptrs_ = new char *[slices];
-  h_sizes_ = new size_t[slices];
+    : slices_(slices), max_chunk_size_(0) {
+  cudaMallocHost(&h_ptrs_compression_, sizeof(*h_ptrs_compression_) * slices);
   cudaMalloc(&d_ptrs_, sizeof(*d_ptrs_) * slices);
+  cudaMalloc(&d_sizes_, sizeof(*d_sizes_) * slices);
+  cudaMalloc(&d_size_, sizeof(*d_size_));
 }
 
 BatchDataCompressed::~BatchDataCompressed() {
-  delete[] h_ptrs_;
-  delete[] h_sizes_;
   cudaFree(d_ptrs_);
-  if (compressing_) {
+  cudaFree(d_sizes_);
+  cudaFree(d_size_);
+  if (max_chunk_size_) {
     cudaError_t error{cudaSuccess};
     for (uint64_t i_chunk = 0; error == cudaSuccess && i_chunk < slices_;
          ++i_chunk) {
-      error = cudaFree(h_ptrs_[i_chunk]);
+      error = cudaFree(h_ptrs_compression_[i_chunk]);
     }
   }
+  cudaFreeHost(h_ptrs_compression_);
 }

@@ -31,7 +31,7 @@ if(NOT NVCOMP MATCHES OFF)
     HINTS "${CMAKE_CURRENT_SOURCE_DIR}/compression_libraries/nvcomp_/nvcomp/lib"
   )
   add_subdirectory(compression_libraries/nvcomp_)
-  set(SMASH_LIBRARIES ${SMASH_LIBRARIES} ${NVCOMP_LIBRARY})
+  set(SMASH_LIBRARIES ${SMASH_LIBRARIES} ${NVCOMP_LIBRARY} nvcomp_util)
   set(SMASH_INCLUDES ${SMASH_INCLUDES}
     ${CMAKE_CURRENT_SOURCE_DIR}/compression_libraries/nvcomp_/include
     ${CMAKE_CURRENT_SOURCE_DIR}/compression_libraries/nvcomp_/nvcomp/include

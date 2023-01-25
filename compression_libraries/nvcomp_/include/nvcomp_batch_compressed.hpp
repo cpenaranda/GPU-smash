@@ -12,22 +12,25 @@
 
 #include <iostream>
 
+// SMASH LIBRARIES
+#include <nvcomp_util.cuh>
+
 class BatchDataCompressed {
  public:
   // Compressing
-  cudaError_t InitilizeCompression(char *data, size_t *sizes,
-                                   const size_t &max_chunk_size,
+  cudaError_t InitilizeCompression(char *data, size_t *displacements,
+                                   const cudaStream_t &stream);
+
+  cudaError_t ConfigureCompression(const size_t &max_chunk_size,
                                    const cudaStream_t &stream);
 
   cudaError_t DumpData(const size_t &chunks, const cudaStream_t &stream);
 
   // Decompressing
-  cudaError_t InitilizeDecompression(char *data, const size_t &data_size,
-                                     size_t *sizes);
+  cudaError_t InitilizeDecompression(char *data, size_t *displacements,
+                                     const cudaStream_t &stream);
 
   cudaError_t GetNext(const size_t &chunks, const cudaStream_t &stream);
-
-  cudaError_t IncrementSizes(const size_t &chunks);
 
   void *const *d_ptrs();
 
@@ -41,13 +44,15 @@ class BatchDataCompressed {
 
  private:
   char *data_;
-  size_t size_;
+  size_t *d_size_;
   size_t slices_;
   char **d_ptrs_;
-  char **h_ptrs_;
   size_t *d_sizes_;
-  size_t *h_sizes_;
-  bool compressing_;
+  size_t *d_displacements_;
+
+  // Compressing
+  char **h_ptrs_compression_;
+  size_t max_chunk_size_;
 };
 
 #include <nvcomp_batch_compressed.inl>  // NOLINT

@@ -14,16 +14,12 @@
 #include <nvcomp_batch_uncompressed.hpp>
 
 BatchDataUncompressed::BatchDataUncompressed(const size_t &slices)
-    : slices_(slices) {
-  h_ptrs_ = new char *[slices];
-  h_sizes_ = new size_t[slices];
+    : slices_(slices), chunk_size_(0), last_chunk_(0) {
   cudaMalloc(&d_ptrs_, sizeof(*d_ptrs_) * slices);
   cudaMalloc(&d_sizes_, sizeof(*d_sizes_) * slices_);
 }
 
 BatchDataUncompressed::~BatchDataUncompressed() {
-  delete[] h_ptrs_;
-  delete[] h_sizes_;
   cudaFree(d_ptrs_);
   cudaFree(d_sizes_);
 }
