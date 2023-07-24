@@ -19,47 +19,59 @@ bool NvcompLz4Library::CheckOptions(GpuOptions *options,
   if (result) {
     if ((result =
              GpuCompressionLibrary::CheckFlags("nvcomp-lz4", options, 0, 6))) {
-      chunk_size_ = 1 << options->GetChunkSize();
-      configuration_ = {static_cast<nvcompType_t>(
-          (options->GetFlags() == 6) ? 0xff : options->GetFlags())};
-      if (compressor) {
-        result = nvcomp_->InitializeCompression(chunk_size_, configuration_,
-                                                stream_);
-      } else {
-        result = nvcomp_->InitializeDecompression(chunk_size_, stream_);
+      if ((result = GpuCompressionLibrary::CheckChunkNumber("nvcomp-lz4",
+                                                            options, 4, 13))) {
+        if ((result = GpuCompressionLibrary::CheckStreamNumber(
+                 "nvcomp-lz4", options, 1, 8))) {
+          if ((result = nvcomp_->CreateInternalStructures(
+                   options->GetChunkNumber(), options->GetStreamNumber()))) {
+            chunk_size_ = 1 << options->GetChunkSize();
+            configuration_ = {static_cast<nvcompType_t>(
+                (options->GetFlags() == 6) ? 0xff : options->GetFlags())};
+            if (compressor) {
+              result = nvcomp_->InitializeCompression(chunk_size_,
+                                                      configuration_, stream_);
+            } else {
+              result = nvcomp_->InitializeDecompression(chunk_size_, stream_);
+            }
+          }
+        }
       }
     }
   }
   return result;
 }
 
-void NvcompLz4Library::GetCompressedDataSize(uint64_t uncompressed_size,
-                                             uint64_t *compressed_size) {
+void NvcompLz4Library::GetCompressedDataSize(
+    const uint64_t &uncompressed_data_size, uint64_t *compressed_data_size) {
   if (initialized_compressor_ || initialized_decompressor_) {
-    nvcomp_->GetCompressedDataSize(uncompressed_size, compressed_size);
+    nvcomp_->GetCompressedDataSize(uncompressed_data_size,
+                                   compressed_data_size);
   } else {
-    *compressed_size = 0;
+    *compressed_data_size = 0;
   }
 }
 
 void NvcompLz4Library::GetDecompressedDataSizeFromDeviceMemory(
-    char *device_compressed_data, uint64_t compressed_size,
-    uint64_t *decompressed_size) {
+    const char *const device_compressed_data,
+    const uint64_t &compressed_data_size, uint64_t *decompressed_data_size) {
   if (initialized_compressor_ || initialized_decompressor_) {
-    nvcomp_->GetDecompressedDataSize(device_compressed_data, decompressed_size);
+    nvcomp_->GetDecompressedDataSize(device_compressed_data,
+                                     decompressed_data_size);
   } else {
-    *decompressed_size = 0;
+    *decompressed_data_size = 0;
   }
 }
 
-bool NvcompLz4Library::CompressDeviceMemory(char *device_uncompressed_data,
-                                            uint64_t uncompressed_size,
-                                            char *device_compressed_data,
-                                            uint64_t *compressed_size) {
+bool NvcompLz4Library::CompressDeviceToDevice(
+    const char *const device_uncompressed_data,
+    const uint64_t &uncompressed_data_size, char *device_compressed_data,
+    uint64_t *compressed_data_size) {
   bool result{initialized_compressor_};
   if (result) {
-    result = nvcomp_->Compress(device_uncompressed_data, uncompressed_size,
-                               device_compressed_data, compressed_size);
+    result = nvcomp_->CompressDeviceToDevice(
+        device_uncompressed_data, uncompressed_data_size,
+        device_compressed_data, compressed_data_size);
     if (!result) {
       std::cout << "ERROR: nvcomp-lz4 error when compress data" << std::endl;
     }
@@ -67,14 +79,111 @@ bool NvcompLz4Library::CompressDeviceMemory(char *device_uncompressed_data,
   return result;
 }
 
-bool NvcompLz4Library::DecompressDeviceMemory(char *device_compressed_data,
-                                              uint64_t compressed_size,
-                                              char *device_decompressed_data,
-                                              uint64_t *decompressed_size) {
+bool NvcompLz4Library::CompressHostToDevice(
+    const char *const host_uncompressed_data,
+    const uint64_t &uncompressed_data_size, char *device_compressed_data,
+    uint64_t *compressed_data_size) {
+  bool result{initialized_compressor_};
+  if (result) {
+    result = nvcomp_->CompressHostToDevice(
+        host_uncompressed_data, uncompressed_data_size, device_compressed_data,
+        compressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-lz4 error when compress data" << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompLz4Library::CompressDeviceToHost(
+    const char *const device_uncompressed_data,
+    const uint64_t &uncompressed_data_size, char *host_compressed_data,
+    uint64_t *compressed_data_size) {
+  bool result{initialized_compressor_};
+  if (result) {
+    result = nvcomp_->CompressDeviceToHost(
+        device_uncompressed_data, uncompressed_data_size, host_compressed_data,
+        compressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-lz4 error when compress data" << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompLz4Library::CompressHostToHost(
+    const char *const host_uncompressed_data,
+    const uint64_t &uncompressed_data_size, char *host_compressed_data,
+    uint64_t *compressed_data_size) {
+  bool result{initialized_compressor_};
+  if (result) {
+    result = nvcomp_->CompressHostToHost(
+        host_uncompressed_data, uncompressed_data_size, host_compressed_data,
+        compressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-lz4 error when compress data" << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompLz4Library::DecompressDeviceToDevice(
+    const char *const device_compressed_data,
+    const uint64_t &compressed_data_size, char *device_decompressed_data,
+    uint64_t *decompressed_data_size) {
   bool result{initialized_decompressor_};
   if (result) {
-    result = nvcomp_->Decompress(device_compressed_data, compressed_size,
-                                 device_decompressed_data, decompressed_size);
+    result = nvcomp_->DecompressDeviceToDevice(
+        device_compressed_data, compressed_data_size, device_decompressed_data,
+        decompressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-lz4 error when decompress data" << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompLz4Library::DecompressDeviceToHost(
+    const char *const device_compressed_data,
+    const uint64_t &compressed_data_size, char *host_decompressed_data,
+    uint64_t *decompressed_data_size) {
+  bool result{initialized_decompressor_};
+  if (result) {
+    result = nvcomp_->DecompressDeviceToHost(
+        device_compressed_data, compressed_data_size, host_decompressed_data,
+        decompressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-lz4 error when decompress data" << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompLz4Library::DecompressHostToDevice(
+    const char *const host_compressed_data,
+    const uint64_t &compressed_data_size, char *device_decompressed_data,
+    uint64_t *decompressed_data_size) {
+  bool result{initialized_decompressor_};
+  if (result) {
+    result = nvcomp_->DecompressHostToDevice(
+        host_compressed_data, compressed_data_size, device_decompressed_data,
+        decompressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-lz4 error when decompress data" << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompLz4Library::DecompressHostToHost(
+    const char *const host_compressed_data,
+    const uint64_t &compressed_data_size, char *host_decompressed_data,
+    uint64_t *decompressed_data_size) {
+  bool result{initialized_decompressor_};
+  if (result) {
+    result = nvcomp_->DecompressHostToHost(
+        host_compressed_data, compressed_data_size, host_decompressed_data,
+        decompressed_data_size);
     if (!result) {
       std::cout << "ERROR: nvcomp-lz4 error when decompress data" << std::endl;
     }
@@ -122,6 +231,32 @@ bool NvcompLz4Library::GetChunkSizeInformation(
   return true;
 }
 
+bool NvcompLz4Library::GetChunkNumberInformation(
+    std::vector<std::string> *chunk_number_information, uint8_t *minimum_chunks,
+    uint8_t *maximum_chunks) {
+  if (minimum_chunks) *minimum_chunks = 4;
+  if (maximum_chunks) *maximum_chunks = 13;
+  if (chunk_number_information) {
+    chunk_number_information->clear();
+    chunk_number_information->push_back("Available values [4-13]");
+    chunk_number_information->push_back("[compression]");
+  }
+  return true;
+}
+
+bool NvcompLz4Library::GetStreamNumberInformation(
+    std::vector<std::string> *stream_number_information,
+    uint8_t *minimum_streams, uint8_t *maximum_streams) {
+  if (minimum_streams) *minimum_streams = 1;
+  if (maximum_streams) *maximum_streams = 8;
+  if (stream_number_information) {
+    stream_number_information->clear();
+    stream_number_information->push_back("Available values [1-8]");
+    stream_number_information->push_back("[compression]");
+  }
+  return true;
+}
+
 std::string NvcompLz4Library::GetFlagsName(const uint8_t &flags) {
   std::string result = "ERROR";
   if (flags < number_of_flags_) {
@@ -130,7 +265,7 @@ std::string NvcompLz4Library::GetFlagsName(const uint8_t &flags) {
   return result;
 }
 
-NvcompLz4Library::NvcompLz4Library(const uint64_t &batch_size) {
+NvcompLz4Library::NvcompLz4Library() {
   number_of_flags_ = 7;
   flags_ = new std::string[number_of_flags_];
   flags_[0] = "Char";
@@ -141,12 +276,12 @@ NvcompLz4Library::NvcompLz4Library(const uint64_t &batch_size) {
   flags_[5] = "Unsigned Int";
   flags_[6] = "Bits";
 
-  nvcomp_ = new NvcompTemplate(nvcompBatchedLZ4CompressGetTempSize,
-                               nvcompBatchedLZ4CompressGetMaxOutputChunkSize,
-                               nvcompBatchedLZ4DecompressGetTempSize,
-                               nvcompBatchedLZ4GetDecompressSizeAsync,
-                               nvcompBatchedLZ4CompressAsync,
-                               nvcompBatchedLZ4DecompressAsync, batch_size);
+  nvcomp_ = new NvcompTemplate<nvcompBatchedLZ4Opts_t>(
+      nvcompBatchedLZ4CompressGetTempSize,
+      nvcompBatchedLZ4CompressGetMaxOutputChunkSize,
+      nvcompBatchedLZ4DecompressGetTempSize,
+      nvcompBatchedLZ4GetDecompressSizeAsync, nvcompBatchedLZ4CompressAsync,
+      nvcompBatchedLZ4DecompressAsync);
 }
 
 NvcompLz4Library::~NvcompLz4Library() {

@@ -14,7 +14,7 @@
 #include <nvcomp_batch_compressed.hpp>
 
 BatchDataCompressed::BatchDataCompressed(const size_t &slices)
-    : slices_(slices), max_chunk_size_(0) {
+    : slices_(slices), last_chunk_(0), max_chunk_size_(0) {
   cudaMallocHost(&h_ptrs_compression_, sizeof(*h_ptrs_compression_) * slices);
   cudaMalloc(&d_ptrs_, sizeof(*d_ptrs_) * slices);
   cudaMalloc(&d_sizes_, sizeof(*d_sizes_) * slices);

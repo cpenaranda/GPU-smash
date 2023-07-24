@@ -8,7 +8,7 @@ project(${TARGET_NAME} DESCRIPTION "GPU-Smash: GPU Compresion Abstraction Librar
 if (CMAKE_BUILD_TYPE MATCHES Debug) # Debug level
   # Defines
   add_definitions(-DDEBUG)
-
+  set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} "-G")
   # Flags
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall")
   if(CMAKE_COMPILER_IS_GNUCXX)
@@ -124,8 +124,8 @@ endif()
 
 include(compression_libraries/libraries.cmake)
 
-set(SMASH_SOURCES
-  ${SMASH_SOURCES}
+set(GPU_SMASH_SOURCES
+  ${GPU_SMASH_SOURCES}
   src/gpu_smash.cpp
   src/gpu_compression_libraries.cpp
   src/gpu_options.cpp
@@ -135,8 +135,10 @@ set(SMASH_SOURCES
 include_directories(
   ${CUDA_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${SMASH_INCLUDES}
+  ${GPU_SMASH_INCLUDES}
 )
 
-add_library(${TARGET_NAME} STATIC ${SMASH_SOURCES})
-target_link_libraries(${TARGET_NAME} ${SMASH_LIBRARIES})
+add_definitions(-DGPU_VERSION=4)
+
+add_library(${TARGET_NAME} STATIC ${GPU_SMASH_SOURCES})
+target_link_libraries(${TARGET_NAME} ${GPU_SMASH_LIBRARIES})

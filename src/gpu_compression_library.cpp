@@ -10,7 +10,7 @@
 
 #include <iomanip>
 
-// SMASH LIBRARIES
+// GPU-SMASH LIBRARIES
 #include <gpu_compression_library.hpp>
 
 bool GpuCompressionLibrary::CheckOptions(GpuOptions *options,
@@ -19,7 +19,7 @@ bool GpuCompressionLibrary::CheckOptions(GpuOptions *options,
 }
 
 bool GpuCompressionLibrary::SetOptionsCompressor(GpuOptions *options,
-                                                 cudaStream_t stream) {
+                                                 const cudaStream_t &stream) {
   stream_ = stream;
   if (initialized_decompressor_) initialized_decompressor_ = false;
   initialized_compressor_ = CheckOptions(options, true);
@@ -28,7 +28,7 @@ bool GpuCompressionLibrary::SetOptionsCompressor(GpuOptions *options,
 }
 
 bool GpuCompressionLibrary::SetOptionsDecompressor(GpuOptions *options,
-                                                   cudaStream_t stream) {
+                                                   const cudaStream_t &stream) {
   stream_ = stream;
   if (initialized_compressor_) initialized_compressor_ = false;
   initialized_decompressor_ = CheckOptions(options, false);
@@ -36,147 +36,232 @@ bool GpuCompressionLibrary::SetOptionsDecompressor(GpuOptions *options,
   return initialized_decompressor_;
 }
 
-void GpuCompressionLibrary::GetCompressedDataSize(uint64_t uncompressed_size,
-                                                  uint64_t *compressed_size) {
+void GpuCompressionLibrary::GetCompressedDataSize(
+    const uint64_t &uncompressed_data_size, uint64_t *compressed_data_size) {
   // There is no way to obtain with the library
-  if (uncompressed_size < 2500) {
-    *compressed_size = 5000;
+  if (uncompressed_data_size < 2500) {
+    *compressed_data_size = 5000;
   } else {
-    *compressed_size = uncompressed_size * 2;
+    *compressed_data_size = uncompressed_data_size * 2;
   }
 }
 
 void GpuCompressionLibrary::GetCompressedDataSizeFromDeviceMemory(
-    char *device_uncompressed_data, uint64_t uncompressed_size,
-    uint64_t *compressed_size) {
-  GetCompressedDataSize(uncompressed_size, compressed_size);
+    const char *const device_uncompressed_data,
+    const uint64_t &uncompressed_data_size, uint64_t *compressed_data_size) {
+  GetCompressedDataSize(uncompressed_data_size, compressed_data_size);
 }
 
 void GpuCompressionLibrary::GetCompressedDataSizeFromHostMemory(
-    char *host_uncompressed_data, uint64_t uncompressed_size,
-    uint64_t *compressed_size) {
-  GetCompressedDataSize(uncompressed_size, compressed_size);
+    const char *const host_uncompressed_data,
+    const uint64_t &uncompressed_data_size, uint64_t *compressed_data_size) {
+  GetCompressedDataSize(uncompressed_data_size, compressed_data_size);
 }
 
-bool GpuCompressionLibrary::CompressDeviceMemory(char *device_uncompressed_data,
-                                                 uint64_t uncompressed_size,
-                                                 char *device_compressed_data,
-                                                 uint64_t *compressed_size) {
+bool GpuCompressionLibrary::CompressDeviceToDevice(
+    const char *const device_uncompressed_data,
+    const uint64_t &uncompressed_data_size, char *device_compressed_data,
+    uint64_t *compressed_data_size) {
   bool result{initialized_compressor_};
   if (result) {
-    char *host_uncompressed_data = new char[uncompressed_size];
-    cudaMemcpy(host_uncompressed_data, device_uncompressed_data,
-               uncompressed_size, cudaMemcpyDeviceToHost);
-    GetCompressedDataSizeFromHostMemory(host_uncompressed_data,
-                                        uncompressed_size, compressed_size);
-    char *host_compressed_data = new char[*compressed_size];
-    result = CompressHostMemory(host_uncompressed_data, uncompressed_size,
-                                host_compressed_data, compressed_size);
+    char *host_uncompressed_data = new char[uncompressed_data_size];
+    result = (cudaSuccess == cudaMemcpyAsync(host_uncompressed_data,
+                                             device_uncompressed_data,
+                                             uncompressed_data_size,
+                                             cudaMemcpyDeviceToHost, stream_));
     if (result) {
-      cudaMemcpy(device_compressed_data, host_compressed_data, *compressed_size,
-                 cudaMemcpyHostToDevice);
+      result =
+          CompressHostToDevice(host_uncompressed_data, uncompressed_data_size,
+                               device_compressed_data, compressed_data_size);
     }
     delete[] host_uncompressed_data;
+  }
+  return result;
+}
+
+bool GpuCompressionLibrary::CompressDeviceToHost(
+    const char *const device_uncompressed_data,
+    const uint64_t &uncompressed_data_size, char *host_compressed_data,
+    uint64_t *compressed_data_size) {
+  bool result{initialized_compressor_};
+  if (result) {
+    GetCompressedDataSizeFromDeviceMemory(
+        device_uncompressed_data, uncompressed_data_size, compressed_data_size);
+    char *device_compressed_data;
+    result = (cudaSuccess ==
+              cudaMalloc(&device_compressed_data, *compressed_data_size));
+    if (result) {
+      result = CompressDeviceToDevice(
+          device_uncompressed_data, uncompressed_data_size,
+          device_compressed_data, compressed_data_size);
+      if (result) {
+        result = cudaMemcpy(host_compressed_data, device_compressed_data,
+                            *compressed_data_size, cudaMemcpyDeviceToHost);
+      }
+      result &= (cudaSuccess == cudaFree(device_compressed_data));
+    }
+  }
+  return result;
+}
+
+bool GpuCompressionLibrary::CompressHostToDevice(
+    const char *const host_uncompressed_data,
+    const uint64_t &uncompressed_data_size, char *device_compressed_data,
+    uint64_t *compressed_data_size) {
+  bool result{initialized_compressor_};
+  if (result) {
+    GetCompressedDataSizeFromHostMemory(
+        host_uncompressed_data, uncompressed_data_size, compressed_data_size);
+    char *host_compressed_data = new char[*compressed_data_size];
+    result = CompressHostToHost(host_uncompressed_data, uncompressed_data_size,
+                                host_compressed_data, compressed_data_size);
+    if (result) {
+      result = (cudaSuccess ==
+                cudaMemcpy(device_compressed_data, host_compressed_data,
+                           *compressed_data_size, cudaMemcpyHostToDevice));
+    }
     delete[] host_compressed_data;
   }
   return result;
 }
 
-bool GpuCompressionLibrary::CompressHostMemory(char *host_uncompressed_data,
-                                               uint64_t uncompressed_size,
-                                               char *host_compressed_data,
-                                               uint64_t *compressed_size) {
+bool GpuCompressionLibrary::CompressHostToHost(
+    const char *const host_uncompressed_data,
+    const uint64_t &uncompressed_data_size, char *host_compressed_data,
+    uint64_t *compressed_data_size) {
   bool result{initialized_compressor_};
   if (result) {
     char *device_uncompressed_data;
-    char *device_compressed_data;
-    cudaMalloc(&device_uncompressed_data, uncompressed_size);
-    cudaMemcpy(device_uncompressed_data, host_uncompressed_data,
-               uncompressed_size, cudaMemcpyHostToDevice);
-    GetCompressedDataSizeFromDeviceMemory(device_uncompressed_data,
-                                          uncompressed_size, compressed_size);
-    cudaMalloc(&device_compressed_data, *compressed_size);
-    result = CompressDeviceMemory(device_uncompressed_data, uncompressed_size,
-                                  device_compressed_data, compressed_size);
+    result = (cudaSuccess ==
+              cudaMalloc(&device_uncompressed_data, uncompressed_data_size));
     if (result) {
-      cudaMemcpy(host_compressed_data, device_compressed_data, *compressed_size,
-                 cudaMemcpyDeviceToHost);
+      result = (cudaSuccess ==
+                cudaMemcpyAsync(device_uncompressed_data,
+                                host_uncompressed_data, uncompressed_data_size,
+                                cudaMemcpyHostToDevice, stream_));
+      if (result) {
+        result = CompressDeviceToHost(
+            device_uncompressed_data, uncompressed_data_size,
+            host_compressed_data, compressed_data_size);
+      }
+      result &= (cudaSuccess == cudaFree(device_uncompressed_data));
     }
-    cudaFree(device_uncompressed_data);
-    cudaFree(device_compressed_data);
   }
   return result;
 }
 
 void GpuCompressionLibrary::GetDecompressedDataSizeFromDeviceMemory(
-    char *device_compressed_data, uint64_t compressed_size,
-    uint64_t *decompressed_size) {
-  char *host_compressed_data = new char[compressed_size];
-  cudaMemcpy(host_compressed_data, device_compressed_data, compressed_size,
+    const char *const device_compressed_data,
+    const uint64_t &compressed_data_size, uint64_t *decompressed_data_size) {
+  char *host_compressed_data = new char[compressed_data_size];
+  cudaMemcpy(host_compressed_data, device_compressed_data, compressed_data_size,
              cudaMemcpyDeviceToHost);
-  GetDecompressedDataSizeFromHostMemory(host_compressed_data, compressed_size,
-                                        decompressed_size);
+  GetDecompressedDataSizeFromHostMemory(
+      host_compressed_data, compressed_data_size, decompressed_data_size);
   delete[] host_compressed_data;
 }
 
 void GpuCompressionLibrary::GetDecompressedDataSizeFromHostMemory(
-    char *host_compressed_data, uint64_t compressed_size,
-    uint64_t *decompressed_size) {
+    const char *const host_compressed_data,
+    const uint64_t &compressed_data_size, uint64_t *decompressed_data_size) {
   char *device_compressed_data;
-  cudaMalloc(&device_compressed_data, compressed_size);
-  cudaMemcpy(device_compressed_data, host_compressed_data, compressed_size,
+  cudaMalloc(&device_compressed_data, compressed_data_size);
+  cudaMemcpy(device_compressed_data, host_compressed_data, compressed_data_size,
              cudaMemcpyHostToDevice);
-  GetDecompressedDataSizeFromDeviceMemory(device_compressed_data,
-                                          compressed_size, decompressed_size);
+  GetDecompressedDataSizeFromDeviceMemory(
+      device_compressed_data, compressed_data_size, decompressed_data_size);
   cudaFree(device_compressed_data);
 }
 
-bool GpuCompressionLibrary::DecompressDeviceMemory(
-    char *device_compressed_data, uint64_t compressed_size,
-    char *device_decompressed_data, uint64_t *decompressed_size) {
+bool GpuCompressionLibrary::DecompressDeviceToDevice(
+    const char *const device_compressed_data,
+    const uint64_t &compressed_data_size, char *device_decompressed_data,
+    uint64_t *decompressed_data_size) {
   bool result{initialized_decompressor_};
   if (result) {
-    char *host_compressed_data = new char[compressed_size];
-    cudaMemcpy(host_compressed_data, device_compressed_data, compressed_size,
-               cudaMemcpyDeviceToHost);
-    GetDecompressedDataSizeFromHostMemory(host_compressed_data, compressed_size,
-                                          decompressed_size);
-    char *host_decompressed_data = new char[*decompressed_size];
-    result = DecompressHostMemory(host_compressed_data, compressed_size,
-                                  host_decompressed_data, decompressed_size);
+    char *host_compressed_data = new char[compressed_data_size];
+    result = (cudaSuccess == cudaMemcpyAsync(host_compressed_data,
+                                             device_compressed_data,
+                                             compressed_data_size,
+                                             cudaMemcpyDeviceToHost, stream_));
     if (result) {
-      cudaMemcpy(device_decompressed_data, host_decompressed_data,
-                 *decompressed_size, cudaMemcpyHostToDevice);
+      result = DecompressHostToDevice(
+          host_compressed_data, compressed_data_size, device_decompressed_data,
+          decompressed_data_size);
     }
     delete[] host_compressed_data;
+  }
+  return result;
+}
+
+bool GpuCompressionLibrary::DecompressDeviceToHost(
+    const char *const device_compressed_data,
+    const uint64_t &compressed_data_size, char *host_decompressed_data,
+    uint64_t *decompressed_data_size) {
+  bool result{initialized_decompressor_};
+  if (result) {
+    GetDecompressedDataSizeFromDeviceMemory(
+        device_compressed_data, compressed_data_size, decompressed_data_size);
+    char *device_decompressed_data;
+    result = (cudaSuccess ==
+              cudaMalloc(&device_decompressed_data, *decompressed_data_size));
+    if (result) {
+      result = DecompressDeviceToDevice(
+          device_compressed_data, compressed_data_size,
+          device_decompressed_data, decompressed_data_size);
+      if (result) {
+        result = cudaMemcpy(host_decompressed_data, device_decompressed_data,
+                            *decompressed_data_size, cudaMemcpyDeviceToHost);
+      }
+      result &= (cudaSuccess == cudaFree(device_decompressed_data));
+    }
+  }
+  return result;
+}
+
+bool GpuCompressionLibrary::DecompressHostToDevice(
+    const char *const host_compressed_data,
+    const uint64_t &compressed_data_size, char *device_decompressed_data,
+    uint64_t *decompressed_data_size) {
+  bool result{initialized_decompressor_};
+  if (result) {
+    GetDecompressedDataSizeFromHostMemory(
+        host_compressed_data, compressed_data_size, decompressed_data_size);
+    char *host_decompressed_data = new char[*decompressed_data_size];
+    result =
+        DecompressHostToHost(host_compressed_data, compressed_data_size,
+                             host_decompressed_data, decompressed_data_size);
+    if (result) {
+      result = (cudaSuccess ==
+                cudaMemcpy(device_decompressed_data, host_decompressed_data,
+                           *decompressed_data_size, cudaMemcpyHostToDevice));
+    }
     delete[] host_decompressed_data;
   }
   return result;
 }
 
-bool GpuCompressionLibrary::DecompressHostMemory(char *host_compressed_data,
-                                                 uint64_t compressed_size,
-                                                 char *host_decompressed_data,
-                                                 uint64_t *decompressed_size) {
+bool GpuCompressionLibrary::DecompressHostToHost(
+    const char *const host_compressed_data,
+    const uint64_t &compressed_data_size, char *host_decompressed_data,
+    uint64_t *decompressed_data_size) {
   bool result{initialized_decompressor_};
   if (result) {
     char *device_compressed_data;
-    char *device_decompressed_data;
-    cudaMalloc(&device_compressed_data, compressed_size);
-    cudaMemcpy(device_compressed_data, host_compressed_data, compressed_size,
-               cudaMemcpyHostToDevice);
-    GetDecompressedDataSizeFromDeviceMemory(device_compressed_data,
-                                            compressed_size, decompressed_size);
-    cudaMalloc(&device_decompressed_data, *decompressed_size);
-    result =
-        DecompressDeviceMemory(device_compressed_data, compressed_size,
-                               device_decompressed_data, decompressed_size);
+    result = (cudaSuccess ==
+              cudaMalloc(&device_compressed_data, compressed_data_size));
     if (result) {
-      cudaMemcpy(host_decompressed_data, device_decompressed_data,
-                 *decompressed_size, cudaMemcpyDeviceToHost);
+      result = (cudaSuccess ==
+                cudaMemcpyAsync(device_compressed_data, host_compressed_data,
+                                compressed_data_size, cudaMemcpyHostToDevice,
+                                stream_));
+      if (result) {
+        result = DecompressDeviceToHost(
+            device_compressed_data, compressed_data_size,
+            host_decompressed_data, decompressed_data_size);
+      }
+      result &= (cudaSuccess == cudaFree(device_compressed_data));
     }
-    cudaFree(device_compressed_data);
-    cudaFree(device_decompressed_data);
   }
   return result;
 }
@@ -241,12 +326,30 @@ bool GpuCompressionLibrary::GetChunkSizeInformation(
   return false;
 }
 
-bool GpuCompressionLibrary::GetBackReferenceBitsInformation(
-    std::vector<std::string> *back_reference_bits_information,
-    uint8_t *minimum_bits, uint8_t *maximum_bits) {
-  if (minimum_bits) *minimum_bits = 0;
-  if (maximum_bits) *maximum_bits = 0;
-  if (back_reference_bits_information) back_reference_bits_information->clear();
+bool GpuCompressionLibrary::GetChunkNumberInformation(
+    std::vector<std::string> *chunk_number_information, uint8_t *minimum_chunks,
+    uint8_t *maximum_chunks) {
+  if (minimum_chunks) *minimum_chunks = 0;
+  if (maximum_chunks) *maximum_chunks = 0;
+  if (chunk_number_information) chunk_number_information->clear();
+  return false;
+}
+
+bool GpuCompressionLibrary::GetStreamNumberInformation(
+    std::vector<std::string> *stream_number_information,
+    uint8_t *minimum_streams, uint8_t *maximum_streams) {
+  if (minimum_streams) *minimum_streams = 0;
+  if (maximum_streams) *maximum_streams = 0;
+  if (stream_number_information) stream_number_information->clear();
+  return false;
+}
+
+bool GpuCompressionLibrary::GetBackReferenceInformation(
+    std::vector<std::string> *back_reference_information,
+    uint8_t *minimum_back_reference, uint8_t *maximum_back_reference) {
+  if (minimum_back_reference) *minimum_back_reference = 0;
+  if (maximum_back_reference) *maximum_back_reference = 0;
+  if (back_reference_information) back_reference_information->clear();
   return false;
 }
 
@@ -256,32 +359,6 @@ std::string GpuCompressionLibrary::GetModeName(const uint8_t &mode) {
 
 std::string GpuCompressionLibrary::GetFlagsName(const uint8_t &flags) {
   return "------------";
-}
-
-bool GpuCompressionLibrary::CompareDataDeviceMemory(
-    char *device_uncompress_data, const uint64_t &uncompress_size,
-    char *device_decompress_data, const uint64_t &decompress_size) {
-  bool res = true;
-  if ((res = (uncompress_size == decompress_size))) {
-    char *uncompressed_data = new char[uncompress_size];
-    char *decompressed_data = new char[decompress_size];
-    cudaMemcpy(uncompressed_data, device_uncompress_data, uncompress_size,
-               cudaMemcpyDeviceToHost);
-    cudaMemcpy(decompressed_data, device_decompress_data, decompress_size,
-               cudaMemcpyDeviceToHost);
-    res = CompareDataHostMemory(uncompressed_data, uncompress_size,
-                                decompressed_data, decompress_size);
-    delete[] uncompressed_data;
-    delete[] decompressed_data;
-  }
-  return res;
-}
-
-bool GpuCompressionLibrary::CompareDataHostMemory(
-    char *uncompress_data, const uint64_t &uncompress_size,
-    char *decompress_data, const uint64_t &decompress_size) {
-  return ((uncompress_size == decompress_size) &&
-          (memcmp(uncompress_data, decompress_data, decompress_size) == 0));
 }
 
 bool GpuCompressionLibrary::CheckCompressionLevel(
@@ -421,26 +498,103 @@ bool GpuCompressionLibrary::CheckChunkSize(const std::string &library_name,
   return result;
 }
 
-bool GpuCompressionLibrary::CheckBackReferenceBits(
-    const std::string &library_name, GpuOptions *options,
-    const uint8_t &minimum_bits, const uint8_t &maximum_bits) {
+bool GpuCompressionLibrary::CheckChunkNumber(const std::string &library_name,
+                                             GpuOptions *options,
+                                             const uint8_t &minimum_chunks,
+                                             const uint8_t &maximum_chunks) {
   bool result{true};
-  if (options->BackReferenceBitsIsSet()) {
-    if (options->GetBackReferenceBits() < minimum_bits) {
-      std::cout << "ERROR: Back refence bits can not be lower than "
-                << static_cast<uint64_t>(minimum_bits) << " using "
+  if (options->ChunkNumberIsSet()) {
+    if (options->GetChunkNumber() < minimum_chunks) {
+      std::cout << "ERROR: Number of chunks can not be lower than "
+                << static_cast<uint64_t>(minimum_chunks) << " using "
                 << library_name << std::endl;
       result = false;
-    } else if (options->GetBackReferenceBits() > maximum_bits) {
-      std::cout << "ERROR: Back refence bits can not be higher than "
-                << static_cast<uint64_t>(maximum_bits) << " using "
+    } else if (options->GetChunkNumber() > maximum_chunks) {
+      std::cout << "ERROR: Number of chunks can not be higher than "
+                << static_cast<uint64_t>(maximum_chunks) << " using "
                 << library_name << std::endl;
       result = false;
     }
   } else {
-    options->SetBackReferenceBits(minimum_bits);
+    options->SetChunkNumber(minimum_chunks);
   }
   return result;
+}
+
+bool GpuCompressionLibrary::CheckStreamNumber(const std::string &library_name,
+                                              GpuOptions *options,
+                                              const uint8_t &minimum_streams,
+                                              const uint8_t &maximum_streams) {
+  bool result{true};
+  if (options->StreamNumberIsSet()) {
+    if (options->GetStreamNumber() < minimum_streams) {
+      std::cout << "ERROR: Number of streams can not be lower than "
+                << static_cast<uint64_t>(minimum_streams) << " using "
+                << library_name << std::endl;
+      result = false;
+    } else if (options->GetStreamNumber() > maximum_streams) {
+      std::cout << "ERROR: Number of streams can not be higher than "
+                << static_cast<uint64_t>(maximum_streams) << " using "
+                << library_name << std::endl;
+      result = false;
+    }
+  } else {
+    options->SetStreamNumber(minimum_streams);
+  }
+  return result;
+}
+
+bool GpuCompressionLibrary::CheckBackReference(
+    const std::string &library_name, GpuOptions *options,
+    const uint8_t &minimum_back_reference,
+    const uint8_t &maximum_back_reference) {
+  bool result{true};
+  if (options->BackReferenceIsSet()) {
+    if (options->GetBackReference() < minimum_back_reference) {
+      std::cout << "ERROR: Back refence bits can not be lower than "
+                << static_cast<uint64_t>(minimum_back_reference) << " using "
+                << library_name << std::endl;
+      result = false;
+    } else if (options->GetBackReference() > maximum_back_reference) {
+      std::cout << "ERROR: Back refence bits can not be higher than "
+                << static_cast<uint64_t>(maximum_back_reference) << " using "
+                << library_name << std::endl;
+      result = false;
+    }
+  } else {
+    options->SetBackReference(minimum_back_reference);
+  }
+  return result;
+}
+
+bool GpuCompressionLibrary::CompareDataDeviceMemory(
+    const char *const device_uncompress_data,
+    const uint64_t &uncompressed_data_size,
+    const char *const device_decompress_data,
+    const uint64_t &decompressed_data_size) {
+  bool res = true;
+  if ((res = (uncompressed_data_size == decompressed_data_size))) {
+    char *uncompressed_data = new char[uncompressed_data_size];
+    char *decompressed_data = new char[decompressed_data_size];
+    cudaMemcpy(uncompressed_data, device_uncompress_data,
+               uncompressed_data_size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(decompressed_data, device_decompress_data,
+               decompressed_data_size, cudaMemcpyDeviceToHost);
+    res = CompareDataHostMemory(uncompressed_data, uncompressed_data_size,
+                                decompressed_data, decompressed_data_size);
+    delete[] uncompressed_data;
+    delete[] decompressed_data;
+  }
+  return res;
+}
+
+bool GpuCompressionLibrary::CompareDataHostMemory(
+    const char *const uncompressed_data, const uint64_t &uncompressed_data_size,
+    const char *const decompressed_data,
+    const uint64_t &decompressed_data_size) {
+  return ((uncompressed_data_size == decompressed_data_size) &&
+          (memcmp(uncompressed_data, decompressed_data,
+                  decompressed_data_size) == 0));
 }
 
 GpuOptions GpuCompressionLibrary::GetOptions() { return options_; }

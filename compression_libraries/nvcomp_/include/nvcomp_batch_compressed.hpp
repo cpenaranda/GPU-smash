@@ -18,25 +18,41 @@
 class BatchDataCompressed {
  public:
   // Compressing
-  cudaError_t InitilizeCompression(char *data, size_t *displacements,
-                                   const cudaStream_t &stream);
+  cudaError_t InitializeCompression(char *data, size_t *displacements,
+                                    const cudaStream_t &stream);
 
-  cudaError_t ConfigureCompression(const size_t &max_chunk_size,
-                                   const cudaStream_t &stream);
+  cudaError_t ConfigureCompression(const size_t &max_chunk_size);
 
   cudaError_t DumpData(const size_t &chunks, const cudaStream_t &stream);
 
+  cudaError_t DumpDataPipeline(size_t *device_last_batch_size,
+                               const size_t &chunks,
+                               const cudaStream_t &stream);
+
+  void DumpDataPipeline2(const size_t &chunks, const cudaStream_t &stream);
+
+  cudaError_t IncrementPipeline(size_t *device_last_batch_size,
+                                const size_t &chunks,
+                                const cudaStream_t &stream);
+
+  cudaError_t IncrementPipeline(const size_t &last_batch_size,
+                                const size_t &chunks,
+                                const cudaStream_t &stream);
   // Decompressing
-  cudaError_t InitilizeDecompression(char *data, size_t *displacements,
-                                     const cudaStream_t &stream);
+  cudaError_t InitializeDecompression(const char *const data,
+                                      size_t *displacements,
+                                      const cudaStream_t &stream);
 
   cudaError_t GetNext(const size_t &chunks, const cudaStream_t &stream);
+
+  cudaError_t GetNextPipeline(const size_t &chunks, const cudaStream_t &stream,
+                              const size_t &previous_displacement);
 
   void *const *d_ptrs();
 
   size_t *d_sizes();
 
-  size_t size();
+  void GetSize(size_t *size);
 
   BatchDataCompressed(const size_t &slices);
 
@@ -49,6 +65,7 @@ class BatchDataCompressed {
   char **d_ptrs_;
   size_t *d_sizes_;
   size_t *d_displacements_;
+  size_t last_chunk_;
 
   // Compressing
   char **h_ptrs_compression_;

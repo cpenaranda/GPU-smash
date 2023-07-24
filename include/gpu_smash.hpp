@@ -14,66 +14,62 @@
 #include <string>
 #include <vector>
 
-// SMASH LIBRARIES
+// GPU-SMASH LIBRARIES
 #include <gpu_compression_library.hpp>
 #include <gpu_options.hpp>
 
+enum class CompressionType {
+  DeviceToDevice,
+  DeviceToHost,
+  HostToDevice,
+  HostToHost,
+};
+
 class GpuSmash {
  private:
-  GpuCompressionLibrary *lib;
+  GpuCompressionLibrary *library_;
 
  public:
-  bool SetOptionsCompressor(GpuOptions *options, cudaStream_t stream);
+  bool SetOptionsCompressor(GpuOptions *options, const cudaStream_t &stream);
 
-  bool SetOptionsDecompressor(GpuOptions *options, cudaStream_t stream);
+  bool SetOptionsDecompressor(GpuOptions *options, const cudaStream_t &stream);
 
-  void GetCompressedDataSizeFromDeviceMemory(char *device_uncompressed_data,
-                                             uint64_t uncompressed_size,
-                                             uint64_t *compressed_size);
+  void GetCompressedDataSizeFromDeviceMemory(
+      const char *const device_uncompressed_data,
+      const uint64_t &uncompressed_data_size, uint64_t *compressed_data_size);
 
-  void GetCompressedDataSizeFromHostMemory(char *host_uncompressed_data,
-                                           uint64_t uncompressed_size,
-                                           uint64_t *compressed_size);
+  void GetCompressedDataSizeFromHostMemory(
+      const char *const host_uncompressed_data,
+      const uint64_t &uncompressed_data_size, uint64_t *compressed_data_size);
 
-  bool CompressDeviceMemory(char *device_uncompressed_data,
-                            uint64_t uncompressed_size,
-                            char *device_compressed_data,
-                            uint64_t *compressed_size);
+  bool Compress(const char *const uncompressed_data,
+                const uint64_t &uncompressed_data_size, char *compressed_data,
+                uint64_t *compressed_data_size, const CompressionType &type);
 
-  bool CompressHostMemory(char *host_uncompressed_data,
-                          uint64_t uncompressed_size,
-                          char *host_compressed_data,
-                          uint64_t *compressed_size);
+  void GetDecompressedDataSizeFromDeviceMemory(
+      const char *const device_compressed_data,
+      const uint64_t &compressed_data_size, uint64_t *decompressed_data_size);
 
-  void GetDecompressedDataSizeFromDeviceMemory(char *device_compressed_data,
-                                               uint64_t compressed_size,
-                                               uint64_t *decompressed_size);
+  void GetDecompressedDataSizeFromHostMemory(
+      const char *const host_compressed_data,
+      const uint64_t &compressed_data_size, uint64_t *decompressed_data_size);
 
-  void GetDecompressedDataSizeFromHostMemory(char *host_compressed_data,
-                                             uint64_t compressed_size,
-                                             uint64_t *decompressed_size);
-
-  bool DecompressDeviceMemory(char *device_compressed_data,
-                              uint64_t compressed_size,
-                              char *device_decompressed_data,
-                              uint64_t *decompressed_size);
-
-  bool DecompressHostMemory(char *host_compressed_data,
-                            uint64_t compressed_size,
-                            char *host_decompressed_data,
-                            uint64_t *decompressed_size);
+  bool Decompress(const char *const compressed_data,
+                  const uint64_t &compressed_data_size, char *decompressed_data,
+                  uint64_t *decompressed_data_size,
+                  const CompressionType &type);
 
   void GetTitle();
 
-  bool CompareDataDeviceMemory(char *device_uncompressed_data,
-                               const uint64_t &uncompressed_size,
-                               char *device_decompressed_data,
-                               const uint64_t &decompressed_size);
+  bool CompareDataDeviceMemory(const char *const device_uncompressed_data,
+                               const uint64_t &uncompressed_data_size,
+                               const char *const device_decompressed_data,
+                               const uint64_t &decompressed_data_size);
 
-  bool CompareDataHostMemory(char *host_uncompressed_data,
-                             const uint64_t &uncompressed_size,
-                             char *host_decompressed_data,
-                             const uint64_t &decompressed_size);
+  bool CompareDataHostMemory(const char *const host_uncompressed_data,
+                             const uint64_t &uncompressed_data_size,
+                             const char *const host_decompressed_data,
+                             const uint64_t &decompressed_data_size);
 
   bool GetCompressionLevelInformation(
       std::vector<std::string> *compression_level_information = nullptr,
@@ -101,9 +97,18 @@ class GpuSmash {
       uint8_t *minimum_chunk_size = nullptr,
       uint8_t *maximum_chunk_size = nullptr);
 
-  bool GetBackReferenceBitsInformation(
-      std::vector<std::string> *back_reference_bits_information = nullptr,
-      uint8_t *minimum_bits = nullptr, uint8_t *maximum_bits = nullptr);
+  bool GetChunkNumberInformation(
+      std::vector<std::string> *chunk_number_information = nullptr,
+      uint8_t *minimum_chunks = nullptr, uint8_t *maximum_chunks = nullptr);
+
+  bool GetStreamNumberInformation(
+      std::vector<std::string> *stream_number_information = nullptr,
+      uint8_t *minimum_streams = nullptr, uint8_t *maximum_streams = nullptr);
+
+  bool GetBackReferenceInformation(
+      std::vector<std::string> *back_reference_information = nullptr,
+      uint8_t *minimum_back_reference = nullptr,
+      uint8_t *maximum_back_reference = nullptr);
 
   std::string GetModeName(const uint8_t &mode);
 

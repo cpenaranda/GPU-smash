@@ -6,56 +6,52 @@
  * Universidad Politécnica de Valencia (Spain)
  */
 
-// SMASH LIBRARIES
+// GPU-SMASH LIBRARIES
 #include <gpu_options.hpp>
 
-bool GpuOptions::SetCompressionLevel(const uint8_t &compression_level) {
+void GpuOptions::SetCompressionLevel(const uint8_t &compression_level) {
   compression_level_ = compression_level;
-  bool result = compression_level_set_;
   compression_level_set_ = true;
-  return result;
 }
 
-bool GpuOptions::SetWindowSize(const uint32_t &window_size) {
+void GpuOptions::SetWindowSize(const uint32_t &window_size) {
   window_size_ = window_size;
-  bool result = window_size_set_;
   window_size_set_ = true;
-  return result;
 }
 
-bool GpuOptions::SetMode(const uint8_t &mode) {
+void GpuOptions::SetMode(const uint8_t &mode) {
   mode_ = mode;
-  bool result = mode_set_;
   mode_set_ = true;
-  return result;
 }
 
-bool GpuOptions::SetWorkFactor(const uint8_t &work_factor) {
+void GpuOptions::SetWorkFactor(const uint8_t &work_factor) {
   work_factor_ = work_factor;
-  bool result = work_factor_set_;
   work_factor_set_ = true;
-  return result;
 }
 
-bool GpuOptions::SetFlags(const uint8_t &flags) {
+void GpuOptions::SetFlags(const uint8_t &flags) {
   flags_ = flags;
-  bool result = flags_set_;
   flags_set_ = true;
-  return result;
 }
 
-bool GpuOptions::SetChunkSize(const uint8_t &chunk_size) {
+void GpuOptions::SetChunkSize(const uint8_t &chunk_size) {
   chunk_size_ = chunk_size;
-  bool result = chunk_size_set_;
   chunk_size_set_ = true;
-  return result;
 }
 
-bool GpuOptions::SetBackReferenceBits(const uint8_t &back_reference_bits) {
-  back_reference_bits_ = back_reference_bits;
-  bool result = back_reference_bits_set_;
-  back_reference_bits_set_ = true;
-  return result;
+void GpuOptions::SetChunkNumber(const uint8_t &chunk_number) {
+  chunk_number_ = chunk_number;
+  chunk_number_set_ = true;
+}
+
+void GpuOptions::SetStreamNumber(const uint8_t &stream_number) {
+  stream_number_ = stream_number;
+  stream_number_set_ = true;
+}
+
+void GpuOptions::SetBackReference(const uint8_t &back_reference) {
+  back_reference_ = back_reference;
+  back_reference_set_ = true;
 }
 
 bool GpuOptions::CompressionLevelIsSet() const {
@@ -72,9 +68,11 @@ bool GpuOptions::FlagsIsSet() const { return flags_set_; }
 
 bool GpuOptions::ChunkSizeIsSet() const { return chunk_size_set_; }
 
-bool GpuOptions::BackReferenceBitsIsSet() const {
-  return back_reference_bits_set_;
-}
+bool GpuOptions::ChunkNumberIsSet() const { return chunk_number_set_; }
+
+bool GpuOptions::StreamNumberIsSet() const { return stream_number_set_; }
+
+bool GpuOptions::BackReferenceIsSet() const { return back_reference_set_; }
 
 uint8_t GpuOptions::GetCompressionLevel() const { return compression_level_; }
 
@@ -88,9 +86,11 @@ uint8_t GpuOptions::GetFlags() const { return flags_; }
 
 uint8_t GpuOptions::GetChunkSize() const { return chunk_size_; }
 
-uint8_t GpuOptions::GetBackReferenceBits() const {
-  return back_reference_bits_;
-}
+uint8_t GpuOptions::GetChunkNumber() const { return chunk_number_; }
+
+uint8_t GpuOptions::GetStreamNumber() const { return stream_number_; }
+
+uint8_t GpuOptions::GetBackReference() const { return back_reference_; }
 
 GpuOptions::GpuOptions() {
   compression_level_ = 0;
@@ -105,8 +105,12 @@ GpuOptions::GpuOptions() {
   flags_set_ = false;
   chunk_size_ = 0;
   chunk_size_set_ = false;
-  back_reference_bits_ = 0;
-  back_reference_bits_set_ = false;
+  chunk_number_ = 0;
+  chunk_number_set_ = false;
+  stream_number_ = 0;
+  stream_number_set_ = false;
+  back_reference_ = 0;
+  back_reference_set_ = false;
 }
 
 GpuOptions::~GpuOptions() {}

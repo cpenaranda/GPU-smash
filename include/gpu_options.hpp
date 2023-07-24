@@ -24,17 +24,23 @@ class GpuOptions {
   bool flags_set_;
   uint8_t chunk_size_;
   bool chunk_size_set_;
-  uint8_t back_reference_bits_;
-  bool back_reference_bits_set_;
+  uint8_t chunk_number_;
+  bool chunk_number_set_;
+  uint8_t stream_number_;
+  bool stream_number_set_;
+  uint8_t back_reference_;
+  bool back_reference_set_;
 
  public:
-  bool SetCompressionLevel(const uint8_t &compression_level);
-  bool SetWindowSize(const uint32_t &window_size);
-  bool SetMode(const uint8_t &mode);
-  bool SetWorkFactor(const uint8_t &work_factor);
-  bool SetFlags(const uint8_t &flags);
-  bool SetChunkSize(const uint8_t &chunk_size);
-  bool SetBackReferenceBits(const uint8_t &back_reference_bits);
+  void SetCompressionLevel(const uint8_t &compression_level);
+  void SetWindowSize(const uint32_t &window_size);
+  void SetMode(const uint8_t &mode);
+  void SetWorkFactor(const uint8_t &work_factor);
+  void SetFlags(const uint8_t &flags);
+  void SetChunkSize(const uint8_t &chunk_size);
+  void SetChunkNumber(const uint8_t &chunk_number);
+  void SetStreamNumber(const uint8_t &stream_number);
+  void SetBackReference(const uint8_t &back_reference);
 
   bool CompressionLevelIsSet() const;
   bool WindowSizeIsSet() const;
@@ -42,7 +48,9 @@ class GpuOptions {
   bool WorkFactorIsSet() const;
   bool FlagsIsSet() const;
   bool ChunkSizeIsSet() const;
-  bool BackReferenceBitsIsSet() const;
+  bool ChunkNumberIsSet() const;
+  bool StreamNumberIsSet() const;
+  bool BackReferenceIsSet() const;
 
   uint8_t GetCompressionLevel() const;
   uint32_t GetWindowSize() const;
@@ -50,7 +58,9 @@ class GpuOptions {
   uint8_t GetWorkFactor() const;
   uint8_t GetFlags() const;
   uint8_t GetChunkSize() const;
-  uint8_t GetBackReferenceBits() const;
+  uint8_t GetChunkNumber() const;
+  uint8_t GetStreamNumber() const;
+  uint8_t GetBackReference() const;
 
   GpuOptions();
   ~GpuOptions();

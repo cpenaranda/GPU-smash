@@ -1,6 +1,0 @@
-[submodule "compression_libraries/dietgpu_/dietgpu"]
-	path = compression_libraries/dietgpu_/dietgpu
-	url = git@github.com:cpenaranda/dietgpu.git
-[submodule "compression_libraries/culzss_/CULZSS"]
-	path = compression_libraries/culzss_/CULZSS
-	url = git@github.com:cpenaranda/CULZSS.git

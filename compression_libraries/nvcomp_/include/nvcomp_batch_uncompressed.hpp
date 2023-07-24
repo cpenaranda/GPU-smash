@@ -18,13 +18,14 @@
 class BatchDataUncompressed {
  public:
   // Compressing
-  cudaError_t InitilizeCompression(char *data, const size_t &data_size);
+  cudaError_t InitializeCompression(const char *const data,
+                                    const size_t &data_size);
 
   cudaError_t GetNextCompression(const size_t &chunks, const size_t &chunk_size,
                                  const cudaStream_t &stream);
 
   // Decompressing
-  cudaError_t InitilizeDecompression(char *data, const cudaStream_t &stream);
+  cudaError_t InitializeDecompression(char *data, const cudaStream_t &stream);
 
   cudaError_t GetNextDecompression(const size_t &chunks,
                                    const size_t &chunk_size,
@@ -34,7 +35,7 @@ class BatchDataUncompressed {
 
   size_t *d_sizes();
 
-  size_t size();
+  size_t size(const size_t &last_chunk = 0);
 
   BatchDataUncompressed(const size_t &slices);
 
@@ -46,12 +47,10 @@ class BatchDataUncompressed {
   char **d_ptrs_;
   size_t *d_sizes_;
 
-  // Compressing
   size_t size_;
 
   // Decompressing
   char *begin_data_;
-  size_t chunk_size_;
   size_t last_chunk_;
 };
 

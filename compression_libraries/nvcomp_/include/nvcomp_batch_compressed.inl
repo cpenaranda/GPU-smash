@@ -6,7 +6,7 @@
  * Universidad Politécnica de Valencia (Spain)
  */
 
-inline cudaError_t BatchDataCompressed::InitilizeCompression(
+inline cudaError_t BatchDataCompressed::InitializeCompression(
     char *data, size_t *displacements, const cudaStream_t &stream) {
   data_ = data;
   cudaError_t error = cudaMemsetAsync(d_size_, 0, sizeof(*d_size_), stream);
@@ -16,14 +16,15 @@ inline cudaError_t BatchDataCompressed::InitilizeCompression(
                             cudaMemcpyHostToDevice, stream);
   }
   d_displacements_ = displacements;
+  last_chunk_ = 0;
   return error;
 }
 
 inline cudaError_t BatchDataCompressed::ConfigureCompression(
-    const size_t &max_chunk_size, const cudaStream_t &stream) {
+    const size_t &max_chunk_size) {
   cudaError_t error{cudaSuccess};
   if (max_chunk_size_ < max_chunk_size) {
-    if (max_chunk_size_ == 0) {
+    if (max_chunk_size_ != 0) {
       for (uint64_t i_chunk = 0; error == cudaSuccess && i_chunk < slices_;
            ++i_chunk) {
         error = cudaFree(h_ptrs_compression_[i_chunk]);
@@ -40,32 +41,69 @@ inline cudaError_t BatchDataCompressed::ConfigureCompression(
 
 inline cudaError_t BatchDataCompressed::DumpData(const size_t &chunks,
                                                  const cudaStream_t &stream) {
-  NvcompUtil::DumpData(data_, d_ptrs_, d_size_, d_sizes_, d_displacements_,
-                       chunks, stream);
-  cudaError_t error =
-      cudaMemcpyAsync(d_size_, &d_displacements_[chunks - 1], sizeof(*d_size_),
-                      cudaMemcpyDeviceToDevice, stream);
-  d_displacements_ += chunks;
-  return error;
+  NvcompUtil::DumpData(data_, d_ptrs_, d_size_, d_sizes_,
+                       d_displacements_ + last_chunk_, chunks, stream);
+  last_chunk_ += chunks;
+  return cudaSuccess;
 }
 
-inline cudaError_t BatchDataCompressed::InitilizeDecompression(
-    char *data, size_t *displacements, const cudaStream_t &stream) {
-  data_ = data;
-  cudaError_t error = cudaMemsetAsync(d_size_, 0, sizeof(*d_size_), stream);
+inline cudaError_t BatchDataCompressed::DumpDataPipeline(
+    size_t *device_last_batch_size, const size_t &chunks,
+    const cudaStream_t &stream) {
+  NvcompUtil::DumpDataPipeline(data_, d_ptrs_, device_last_batch_size, d_sizes_,
+                               d_displacements_, chunks, stream);
+  return cudaMemcpyAsync(device_last_batch_size, &d_displacements_[chunks - 1],
+                         sizeof(*device_last_batch_size),
+                         cudaMemcpyDeviceToDevice, stream);
+}
+
+inline void BatchDataCompressed::DumpDataPipeline2(const size_t &chunks,
+                                                   const cudaStream_t &stream) {
+  NvcompUtil::DumpDataPipeline2(data_, d_ptrs_, d_sizes_, d_displacements_,
+                                chunks, stream);
+}
+
+inline cudaError_t BatchDataCompressed::IncrementPipeline(
+    size_t *device_last_batch_size, const size_t &chunks,
+    const cudaStream_t &stream) {
+  NvcompUtil::IncrementPipeline(device_last_batch_size, d_displacements_,
+                                chunks, stream);
+  return cudaMemcpyAsync(device_last_batch_size, &d_displacements_[chunks - 1],
+                         sizeof(*device_last_batch_size),
+                         cudaMemcpyDeviceToDevice, stream);
+}
+
+inline cudaError_t BatchDataCompressed::IncrementPipeline(
+    const size_t &last_batch_size, const size_t &chunks,
+    const cudaStream_t &stream) {
+  NvcompUtil::IncrementPipeline(last_batch_size, d_displacements_, chunks,
+                                stream);
+  return cudaSuccess;
+}
+
+inline cudaError_t BatchDataCompressed::InitializeDecompression(
+    const char *const data, size_t *displacements, const cudaStream_t &stream) {
+  data_ = const_cast<char *>(data);
   d_displacements_ = displacements;
-  return error;
+  last_chunk_ = 0;
+  return cudaMemsetAsync(d_size_, 0, sizeof(*d_size_), stream);
 }
 
 inline cudaError_t BatchDataCompressed::GetNext(const size_t &chunks,
                                                 const cudaStream_t &stream) {
-  NvcompUtil::GetNext(data_, d_ptrs_, d_size_, d_sizes_, d_displacements_,
-                      chunks, stream);
-  cudaError_t error =
-      cudaMemcpyAsync(d_size_, &d_displacements_[chunks - 1], sizeof(*d_size_),
-                      cudaMemcpyDeviceToDevice, stream);
-  d_displacements_ += chunks;
-  return error;
+  NvcompUtil::GetNext(data_, d_ptrs_, d_size_, d_sizes_,
+                      d_displacements_ + last_chunk_, chunks, stream);
+  last_chunk_ += chunks;
+  return cudaMemcpyAsync(d_size_, &d_displacements_[last_chunk_ - 1],
+                         sizeof(*d_size_), cudaMemcpyDeviceToDevice, stream);
+}
+
+inline cudaError_t BatchDataCompressed::GetNextPipeline(
+    const size_t &chunks, const cudaStream_t &stream,
+    const size_t &previous_displacement) {
+  NvcompUtil::GetNextPipeline(data_, d_ptrs_, previous_displacement, d_sizes_,
+                              d_displacements_, chunks, stream);
+  return cudaSuccess;
 }
 
 inline void *const *BatchDataCompressed::d_ptrs() {
@@ -74,8 +112,9 @@ inline void *const *BatchDataCompressed::d_ptrs() {
 
 inline size_t *BatchDataCompressed::d_sizes() { return d_sizes_; }
 
-inline size_t BatchDataCompressed::size() {
-  size_t size = 0;
-  cudaMemcpy(&size, d_size_, sizeof(size), cudaMemcpyDeviceToHost);
-  return size;
+inline void BatchDataCompressed::GetSize(size_t *size) {
+  size_t compressed_data_size = 0;
+  cudaMemcpy(&compressed_data_size, d_size_, sizeof(size),
+             cudaMemcpyDeviceToHost);
+  *size += compressed_data_size;
 }

@@ -14,7 +14,7 @@
 #include <nvcomp_batch_uncompressed.hpp>
 
 BatchDataUncompressed::BatchDataUncompressed(const size_t &slices)
-    : slices_(slices), chunk_size_(0), last_chunk_(0) {
+    : slices_(slices), size_(0), last_chunk_(0) {
   cudaMalloc(&d_ptrs_, sizeof(*d_ptrs_) * slices);
   cudaMalloc(&d_sizes_, sizeof(*d_sizes_) * slices_);
 }

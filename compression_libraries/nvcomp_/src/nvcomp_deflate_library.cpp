@@ -18,47 +18,59 @@ bool NvcompDeflateLibrary::CheckOptions(GpuOptions *options,
       GpuCompressionLibrary::CheckChunkSize("nvcomp-deflate", options, 12, 16);
   if (result) {
     if ((result = GpuCompressionLibrary::CheckCompressionLevel(
-             "nvcomp-gdeflate", options, 0, 1))) {
-      chunk_size_ = 1 << options->GetChunkSize();
-      configuration_ = {options->GetCompressionLevel()};
-      if (compressor) {
-        result = nvcomp_->InitializeCompression(chunk_size_, configuration_,
-                                                stream_);
-      } else {
-        result = nvcomp_->InitializeDecompression(chunk_size_, stream_);
+             "nvcomp-deflate", options, 0, 1))) {
+      if ((result = GpuCompressionLibrary::CheckChunkNumber("nvcomp-deflate",
+                                                            options, 4, 13))) {
+        if ((result = GpuCompressionLibrary::CheckStreamNumber(
+                 "nvcomp-deflate", options, 1, 8))) {
+          if ((result = nvcomp_->CreateInternalStructures(
+                   options->GetChunkNumber(), options->GetStreamNumber()))) {
+            chunk_size_ = 1 << options->GetChunkSize();
+            configuration_ = {options->GetCompressionLevel()};
+            if (compressor) {
+              result = nvcomp_->InitializeCompression(chunk_size_,
+                                                      configuration_, stream_);
+            } else {
+              result = nvcomp_->InitializeDecompression(chunk_size_, stream_);
+            }
+          }
+        }
       }
     }
   }
   return result;
 }
 
-void NvcompDeflateLibrary::GetCompressedDataSize(uint64_t uncompressed_size,
-                                                 uint64_t *compressed_size) {
+void NvcompDeflateLibrary::GetCompressedDataSize(
+    const uint64_t &uncompressed_data_size, uint64_t *compressed_data_size) {
   if (initialized_compressor_ || initialized_decompressor_) {
-    nvcomp_->GetCompressedDataSize(uncompressed_size, compressed_size);
+    nvcomp_->GetCompressedDataSize(uncompressed_data_size,
+                                   compressed_data_size);
   } else {
-    *compressed_size = 0;
+    *compressed_data_size = 0;
   }
 }
 
 void NvcompDeflateLibrary::GetDecompressedDataSizeFromDeviceMemory(
-    char *device_compressed_data, uint64_t compressed_size,
-    uint64_t *decompressed_size) {
+    const char *const device_compressed_data,
+    const uint64_t &compressed_data_size, uint64_t *decompressed_data_size) {
   if (initialized_compressor_ || initialized_decompressor_) {
-    nvcomp_->GetDecompressedDataSize(device_compressed_data, decompressed_size);
+    nvcomp_->GetDecompressedDataSize(device_compressed_data,
+                                     decompressed_data_size);
   } else {
-    *decompressed_size = 0;
+    *decompressed_data_size = 0;
   }
 }
 
-bool NvcompDeflateLibrary::CompressDeviceMemory(char *device_uncompressed_data,
-                                                uint64_t uncompressed_size,
-                                                char *device_compressed_data,
-                                                uint64_t *compressed_size) {
+bool NvcompDeflateLibrary::CompressDeviceToDevice(
+    const char *const device_uncompressed_data,
+    const uint64_t &uncompressed_data_size, char *device_compressed_data,
+    uint64_t *compressed_data_size) {
   bool result{initialized_compressor_};
   if (result) {
-    result = nvcomp_->Compress(device_uncompressed_data, uncompressed_size,
-                               device_compressed_data, compressed_size);
+    result = nvcomp_->CompressDeviceToDevice(
+        device_uncompressed_data, uncompressed_data_size,
+        device_compressed_data, compressed_data_size);
     if (!result) {
       std::cout << "ERROR: nvcomp-deflate error when compress data"
                 << std::endl;
@@ -67,13 +79,117 @@ bool NvcompDeflateLibrary::CompressDeviceMemory(char *device_uncompressed_data,
   return result;
 }
 
-bool NvcompDeflateLibrary::DecompressDeviceMemory(
-    char *device_compressed_data, uint64_t compressed_size,
-    char *device_decompressed_data, uint64_t *decompressed_size) {
+bool NvcompDeflateLibrary::CompressHostToDevice(
+    const char *const host_uncompressed_data,
+    const uint64_t &uncompressed_data_size, char *device_compressed_data,
+    uint64_t *compressed_data_size) {
+  bool result{initialized_compressor_};
+  if (result) {
+    result = nvcomp_->CompressHostToDevice(
+        host_uncompressed_data, uncompressed_data_size, device_compressed_data,
+        compressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-deflate error when compress data"
+                << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompDeflateLibrary::CompressDeviceToHost(
+    const char *const device_uncompressed_data,
+    const uint64_t &uncompressed_data_size, char *host_compressed_data,
+    uint64_t *compressed_data_size) {
+  bool result{initialized_compressor_};
+  if (result) {
+    result = nvcomp_->CompressDeviceToHost(
+        device_uncompressed_data, uncompressed_data_size, host_compressed_data,
+        compressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-deflate error when compress data"
+                << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompDeflateLibrary::CompressHostToHost(
+    const char *const host_uncompressed_data,
+    const uint64_t &uncompressed_data_size, char *host_compressed_data,
+    uint64_t *compressed_data_size) {
+  bool result{initialized_compressor_};
+  if (result) {
+    result = nvcomp_->CompressHostToHost(
+        host_uncompressed_data, uncompressed_data_size, host_compressed_data,
+        compressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-deflate error when compress data"
+                << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompDeflateLibrary::DecompressDeviceToDevice(
+    const char *const device_compressed_data,
+    const uint64_t &compressed_data_size, char *device_decompressed_data,
+    uint64_t *decompressed_data_size) {
   bool result{initialized_decompressor_};
   if (result) {
-    result = nvcomp_->Decompress(device_compressed_data, compressed_size,
-                                 device_decompressed_data, decompressed_size);
+    result = nvcomp_->DecompressDeviceToDevice(
+        device_compressed_data, compressed_data_size, device_decompressed_data,
+        decompressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-deflate error when decompress data"
+                << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompDeflateLibrary::DecompressDeviceToHost(
+    const char *const device_compressed_data,
+    const uint64_t &compressed_data_size, char *host_decompressed_data,
+    uint64_t *decompressed_data_size) {
+  bool result{initialized_decompressor_};
+  if (result) {
+    result = nvcomp_->DecompressDeviceToHost(
+        device_compressed_data, compressed_data_size, host_decompressed_data,
+        decompressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-deflate error when decompress data"
+                << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompDeflateLibrary::DecompressHostToDevice(
+    const char *const host_compressed_data,
+    const uint64_t &compressed_data_size, char *device_decompressed_data,
+    uint64_t *decompressed_data_size) {
+  bool result{initialized_decompressor_};
+  if (result) {
+    result = nvcomp_->DecompressHostToDevice(
+        host_compressed_data, compressed_data_size, device_decompressed_data,
+        decompressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-deflate error when decompress data"
+                << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompDeflateLibrary::DecompressHostToHost(
+    const char *const host_compressed_data,
+    const uint64_t &compressed_data_size, char *host_decompressed_data,
+    uint64_t *decompressed_data_size) {
+  bool result{initialized_decompressor_};
+  if (result) {
+    result = nvcomp_->DecompressHostToHost(
+        host_compressed_data, compressed_data_size, host_decompressed_data,
+        decompressed_data_size);
     if (!result) {
       std::cout << "ERROR: nvcomp-deflate error when decompress data"
                 << std::endl;
@@ -114,14 +230,39 @@ bool NvcompDeflateLibrary::GetChunkSizeInformation(
   return true;
 }
 
-NvcompDeflateLibrary::NvcompDeflateLibrary(const uint64_t &batch_size) {
-  nvcomp_ =
-      new NvcompTemplate(nvcompBatchedDeflateCompressGetTempSize,
-                         nvcompBatchedDeflateCompressGetMaxOutputChunkSize,
-                         nvcompBatchedDeflateDecompressGetTempSize,
-                         nvcompBatchedDeflateGetDecompressSizeAsync,
-                         nvcompBatchedDeflateCompressAsync,
-                         nvcompBatchedDeflateDecompressAsync, batch_size);
+bool NvcompDeflateLibrary::GetChunkNumberInformation(
+    std::vector<std::string> *chunk_number_information, uint8_t *minimum_chunks,
+    uint8_t *maximum_chunks) {
+  if (minimum_chunks) *minimum_chunks = 4;
+  if (maximum_chunks) *maximum_chunks = 13;
+  if (chunk_number_information) {
+    chunk_number_information->clear();
+    chunk_number_information->push_back("Available values [4-13]");
+    chunk_number_information->push_back("[compression]");
+  }
+  return true;
+}
+
+bool NvcompDeflateLibrary::GetStreamNumberInformation(
+    std::vector<std::string> *stream_number_information,
+    uint8_t *minimum_streams, uint8_t *maximum_streams) {
+  if (minimum_streams) *minimum_streams = 1;
+  if (maximum_streams) *maximum_streams = 8;
+  if (stream_number_information) {
+    stream_number_information->clear();
+    stream_number_information->push_back("Available values [1-8]");
+    stream_number_information->push_back("[compression]");
+  }
+  return true;
+}
+
+NvcompDeflateLibrary::NvcompDeflateLibrary() {
+  nvcomp_ = new NvcompTemplate<nvcompBatchedDeflateOpts_t>(
+      nvcompBatchedDeflateCompressGetTempSize,
+      nvcompBatchedDeflateCompressGetMaxOutputChunkSize,
+      nvcompBatchedDeflateDecompressGetTempSize,
+      nvcompBatchedDeflateGetDecompressSizeAsync,
+      nvcompBatchedDeflateCompressAsync, nvcompBatchedDeflateDecompressAsync);
 }
 
 NvcompDeflateLibrary::~NvcompDeflateLibrary() { delete nvcomp_; }

@@ -16,69 +16,174 @@ bool NvcompBitcompLibrary::CheckOptions(GpuOptions *options,
                                         const bool &compressor) {
   bool result =
       GpuCompressionLibrary::CheckFlags("nvcomp-bitcomp", options, 0, 8);
-  if ((result = GpuCompressionLibrary::CheckCompressionLevel("nvcomp-gdeflate",
+  if ((result = GpuCompressionLibrary::CheckCompressionLevel("nvcomp-bitcomp",
                                                              options, 0, 1))) {
-    configuration_ = {options->GetCompressionLevel(),
-                      static_cast<nvcompType_t>((options->GetFlags() == 8)
-                                                    ? 0xff
-                                                    : options->GetFlags())};
-  }
-  return result;
-}
-
-void NvcompBitcompLibrary::GetCompressedDataSize(uint64_t uncompressed_size,
-                                                 uint64_t *compressed_size) {
-  if (initialized_compressor_ || initialized_decompressor_) {
-    nvcomp_->InitializeCompression(uncompressed_size, configuration_, stream_);
-    nvcomp_->GetCompressedDataSize(uncompressed_size, compressed_size);
-  } else {
-    *compressed_size = 0;
-  }
-}
-
-void NvcompBitcompLibrary::GetDecompressedDataSizeFromDeviceMemory(
-    char *device_compressed_data, uint64_t compressed_size,
-    uint64_t *decompressed_size) {
-  if (initialized_compressor_ || initialized_decompressor_) {
-    nvcomp_->GetDecompressedDataSize(device_compressed_data, decompressed_size);
-  } else {
-    *decompressed_size = 0;
-  }
-}
-
-bool NvcompBitcompLibrary::CompressDeviceMemory(char *device_uncompressed_data,
-                                                uint64_t uncompressed_size,
-                                                char *device_compressed_data,
-                                                uint64_t *compressed_size) {
-  bool result{initialized_compressor_};
-  if (result) {
-    result = nvcomp_->InitializeCompression(uncompressed_size, configuration_,
-                                            stream_);
-    if (result) {
-      result = nvcomp_->Compress(device_uncompressed_data, uncompressed_size,
-                                 device_compressed_data, compressed_size);
-      if (!result) {
-        std::cout << "ERROR: nvcomp-bitcomp error when compress data"
-                  << std::endl;
-      }
+    if ((result = GpuCompressionLibrary::CheckStreamNumber("nvcomp-bitcomp",
+                                                           options, 1, 8))) {
+      configuration_ = {options->GetCompressionLevel(),
+                        static_cast<nvcompType_t>((options->GetFlags() == 8)
+                                                      ? 0xff
+                                                      : options->GetFlags())};
+      result = nvcomp_->CreateInternalStructures(1, options->GetStreamNumber());
     }
   }
   return result;
 }
 
-bool NvcompBitcompLibrary::DecompressDeviceMemory(
-    char *device_compressed_data, uint64_t compressed_size,
-    char *device_decompressed_data, uint64_t *decompressed_size) {
+void NvcompBitcompLibrary::GetCompressedDataSize(
+    const uint64_t &uncompressed_data_size, uint64_t *compressed_data_size) {
+  if (initialized_compressor_ || initialized_decompressor_) {
+    nvcomp_->InitializeCompression(uncompressed_data_size, configuration_,
+                                   stream_);
+    nvcomp_->GetCompressedDataSize(uncompressed_data_size,
+                                   compressed_data_size);
+  } else {
+    *compressed_data_size = 0;
+  }
+}
+
+void NvcompBitcompLibrary::GetDecompressedDataSizeFromDeviceMemory(
+    const char *const device_compressed_data,
+    const uint64_t &compressed_data_size, uint64_t *decompressed_data_size) {
+  if (initialized_compressor_ || initialized_decompressor_) {
+    nvcomp_->GetDecompressedDataSize(device_compressed_data,
+                                     decompressed_data_size);
+  } else {
+    *decompressed_data_size = 0;
+  }
+}
+
+bool NvcompBitcompLibrary::CompressDeviceToDevice(
+    const char *const device_uncompressed_data,
+    const uint64_t &uncompressed_data_size, char *device_compressed_data,
+    uint64_t *compressed_data_size) {
+  bool result{initialized_compressor_};
+  if (result) {
+    result = nvcomp_->CompressDeviceToDevice(
+        device_uncompressed_data, uncompressed_data_size,
+        device_compressed_data, compressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-bitcomp error when compress data"
+                << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompBitcompLibrary::CompressHostToDevice(
+    const char *const host_uncompressed_data,
+    const uint64_t &uncompressed_data_size, char *device_compressed_data,
+    uint64_t *compressed_data_size) {
+  bool result{initialized_compressor_};
+  if (result) {
+    result = nvcomp_->CompressHostToDevice(
+        host_uncompressed_data, uncompressed_data_size, device_compressed_data,
+        compressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-bitcomp error when compress data"
+                << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompBitcompLibrary::CompressDeviceToHost(
+    const char *const device_uncompressed_data,
+    const uint64_t &uncompressed_data_size, char *host_compressed_data,
+    uint64_t *compressed_data_size) {
+  bool result{initialized_compressor_};
+  if (result) {
+    result = nvcomp_->CompressDeviceToHost(
+        device_uncompressed_data, uncompressed_data_size, host_compressed_data,
+        compressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-bitcomp error when compress data"
+                << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompBitcompLibrary::CompressHostToHost(
+    const char *const host_uncompressed_data,
+    const uint64_t &uncompressed_data_size, char *host_compressed_data,
+    uint64_t *compressed_data_size) {
+  bool result{initialized_compressor_};
+  if (result) {
+    result = nvcomp_->CompressHostToHost(
+        host_uncompressed_data, uncompressed_data_size, host_compressed_data,
+        compressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-bitcomp error when compress data"
+                << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompBitcompLibrary::DecompressDeviceToDevice(
+    const char *const device_compressed_data,
+    const uint64_t &compressed_data_size, char *device_decompressed_data,
+    uint64_t *decompressed_data_size) {
   bool result{initialized_decompressor_};
   if (result) {
-    result = nvcomp_->InitializeDecompression(*decompressed_size, stream_);
-    if (result) {
-      result = nvcomp_->Decompress(device_compressed_data, compressed_size,
-                                   device_decompressed_data, decompressed_size);
-      if (!result) {
-        std::cout << "ERROR: nvcomp-bitcomp error when decompress data"
-                  << std::endl;
-      }
+    result = nvcomp_->DecompressDeviceToDevice(
+        device_compressed_data, compressed_data_size, device_decompressed_data,
+        decompressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-bitcomp error when decompress data"
+                << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompBitcompLibrary::DecompressDeviceToHost(
+    const char *const device_compressed_data,
+    const uint64_t &compressed_data_size, char *host_decompressed_data,
+    uint64_t *decompressed_data_size) {
+  bool result{initialized_decompressor_};
+  if (result) {
+    result = nvcomp_->DecompressDeviceToHost(
+        device_compressed_data, compressed_data_size, host_decompressed_data,
+        decompressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-bitcomp error when decompress data"
+                << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompBitcompLibrary::DecompressHostToDevice(
+    const char *const host_compressed_data,
+    const uint64_t &compressed_data_size, char *device_decompressed_data,
+    uint64_t *decompressed_data_size) {
+  bool result{initialized_decompressor_};
+  if (result) {
+    result = nvcomp_->DecompressHostToDevice(
+        host_compressed_data, compressed_data_size, device_decompressed_data,
+        decompressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-bitcomp error when decompress data"
+                << std::endl;
+    }
+  }
+  return result;
+}
+
+bool NvcompBitcompLibrary::DecompressHostToHost(
+    const char *const host_compressed_data,
+    const uint64_t &compressed_data_size, char *host_decompressed_data,
+    uint64_t *decompressed_data_size) {
+  bool result{initialized_decompressor_};
+  if (result) {
+    result = nvcomp_->DecompressHostToHost(
+        host_compressed_data, compressed_data_size, host_decompressed_data,
+        decompressed_data_size);
+    if (!result) {
+      std::cout << "ERROR: nvcomp-bitcomp error when decompress data"
+                << std::endl;
     }
   }
   return result;
@@ -126,6 +231,19 @@ bool NvcompBitcompLibrary::GetFlagsInformation(
   return true;
 }
 
+bool NvcompBitcompLibrary::GetStreamNumberInformation(
+    std::vector<std::string> *stream_number_information,
+    uint8_t *minimum_streams, uint8_t *maximum_streams) {
+  if (minimum_streams) *minimum_streams = 1;
+  if (maximum_streams) *maximum_streams = 8;
+  if (stream_number_information) {
+    stream_number_information->clear();
+    stream_number_information->push_back("Available values [1-8]");
+    stream_number_information->push_back("[compression]");
+  }
+  return true;
+}
+
 std::string NvcompBitcompLibrary::GetFlagsName(const uint8_t &flags) {
   std::string result = "ERROR";
   if (flags < number_of_flags_) {
@@ -134,7 +252,7 @@ std::string NvcompBitcompLibrary::GetFlagsName(const uint8_t &flags) {
   return result;
 }
 
-NvcompBitcompLibrary::NvcompBitcompLibrary(const uint64_t &batch_size) {
+NvcompBitcompLibrary::NvcompBitcompLibrary() {
   number_of_flags_ = 9;
   flags_ = new std::string[number_of_flags_];
   flags_[0] = "Char";
@@ -147,13 +265,12 @@ NvcompBitcompLibrary::NvcompBitcompLibrary(const uint64_t &batch_size) {
   flags_[7] = "Unsigned Long Long";
   flags_[8] = "Bits";
 
-  nvcomp_ =
-      new NvcompTemplate(nvcompBatchedBitcompCompressGetTempSize,
-                         nvcompBatchedBitcompCompressGetMaxOutputChunkSize,
-                         nvcompBatchedBitcompDecompressGetTempSize,
-                         nvcompBatchedBitcompGetDecompressSizeAsync,
-                         nvcompBatchedBitcompCompressAsync,
-                         nvcompBatchedBitcompDecompressAsync, 1);
+  nvcomp_ = new NvcompTemplate<nvcompBatchedBitcompFormatOpts>(
+      nvcompBatchedBitcompCompressGetTempSize,
+      nvcompBatchedBitcompCompressGetMaxOutputChunkSize,
+      nvcompBatchedBitcompDecompressGetTempSize,
+      nvcompBatchedBitcompGetDecompressSizeAsync,
+      nvcompBatchedBitcompCompressAsync, nvcompBatchedBitcompDecompressAsync);
 }
 
 NvcompBitcompLibrary::~NvcompBitcompLibrary() {

@@ -29,22 +29,52 @@ class NvcompGdeflateLibrary : public GpuCompressionLibrary {
  public:
   bool CheckOptions(GpuOptions* options, const bool& compressor);
 
-  void GetCompressedDataSize(uint64_t uncompressed_size,
-                             uint64_t* compressed_size);
+  void GetCompressedDataSize(const uint64_t& uncompressed_data_size,
+                             uint64_t* compressed_sdata_ize);
 
-  void GetDecompressedDataSizeFromDeviceMemory(char* device_compressed_data,
-                                               uint64_t compressed_size,
-                                               uint64_t* decompressed_size);
+  void GetDecompressedDataSizeFromDeviceMemory(
+      const char* const device_compressed_data,
+      const uint64_t& compressed_data_size, uint64_t* decompressed_data_size);
 
-  bool CompressDeviceMemory(char* device_uncompressed_data,
-                            uint64_t uncompressed_size,
+  bool CompressDeviceToDevice(const char* const device_uncompressed_data,
+                              const uint64_t& uncompressed_data_size,
+                              char* device_compressed_data,
+                              uint64_t* compressed_data_size);
+
+  bool CompressHostToDevice(const char* const host_uncompressed_data,
+                            const uint64_t& uncompressed_data_size,
                             char* device_compressed_data,
-                            uint64_t* compressed_size);
+                            uint64_t* compressed_data_size);
 
-  bool DecompressDeviceMemory(char* device_compressed_data,
-                              uint64_t compressed_size,
+  bool CompressDeviceToHost(const char* const device_uncompressed_data,
+                            const uint64_t& uncompressed_data_size,
+                            char* host_compressed_data,
+                            uint64_t* compressed_data_size);
+
+  bool CompressHostToHost(const char* const host_uncompressed_data,
+                          const uint64_t& uncompressed_data_size,
+                          char* host_compressed_data,
+                          uint64_t* compressed_data_size);
+
+  bool DecompressDeviceToDevice(const char* const device_compressed_data,
+                                const uint64_t& compressed_data_size,
+                                char* device_decompressed_data,
+                                uint64_t* decompressed_data_size);
+
+  bool DecompressDeviceToHost(const char* const device_compressed_data,
+                              const uint64_t& compressed_data_size,
+                              char* host_decompressed_data,
+                              uint64_t* decompressed_data_size);
+
+  bool DecompressHostToDevice(const char* const host_compressed_data,
+                              const uint64_t& compressed_data_size,
                               char* device_decompressed_data,
-                              uint64_t* decompressed_size);
+                              uint64_t* decompressed_data_size);
+
+  bool DecompressHostToHost(const char* const host_compressed_data,
+                            const uint64_t& compressed_data_size,
+                            char* host_decompressed_data,
+                            uint64_t* decompressed_data_size);
 
   void GetTitle();
 
@@ -57,6 +87,14 @@ class NvcompGdeflateLibrary : public GpuCompressionLibrary {
       uint8_t* minimum_chunk_size = nullptr,
       uint8_t* maximum_chunk_size = nullptr);
 
-  NvcompGdeflateLibrary(const uint64_t& batch_size = 1000);
+  bool GetChunkNumberInformation(
+      std::vector<std::string>* chunk_number_information = nullptr,
+      uint8_t* minimum_chunks = nullptr, uint8_t* maximum_chunks = nullptr);
+
+  bool GetStreamNumberInformation(
+      std::vector<std::string>* stream_number_information = nullptr,
+      uint8_t* minimum_streams = nullptr, uint8_t* maximum_streams = nullptr);
+
+  NvcompGdeflateLibrary();
   ~NvcompGdeflateLibrary();
 };

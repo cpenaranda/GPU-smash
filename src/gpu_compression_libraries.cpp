@@ -9,14 +9,7 @@
 #include <iomanip>
 #include <iostream>
 
-// SMASH LIBRARIES
-#ifdef CULZSS
-#include <culzss_library.hpp>
-#endif  // CULZSS
-#ifdef DIETGPU
-#include <dietgpu_ans_library.hpp>
-#include <dietgpu_float_library.hpp>
-#endif  // DIETGPU
+// GPU-SMASH LIBRARIES
 #ifdef NVCOMP
 #include <nvcomp_ans_library.hpp>
 #include <nvcomp_bitcomp_library.hpp>
@@ -58,13 +51,6 @@ std::vector<std::string> GpuCompressionLibraries::GetNameLibraries() {
 }
 
 GpuCompressionLibraries::GpuCompressionLibraries() {
-#ifdef CULZSS
-  map_["culzss"] = []() { return new CulzssLibrary(); };
-#endif  // CULZSS
-#ifdef DIETGPU
-  map_["dietgpu-ans"] = []() { return new DietgpuAnsLibrary(); };
-  map_["dietgpu-float"] = []() { return new DietgpuFloatLibrary(); };
-#endif  // DIETGPU
 #ifdef NVCOMP
   map_["nvcomp-ans"] = []() { return new NvcompAnsLibrary(); };
   map_["nvcomp-bitcomp"] = []() { return new NvcompBitcompLibrary(); };

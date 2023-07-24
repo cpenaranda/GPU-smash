@@ -1,42 +1,15 @@
-if(NOT CULZSS MATCHES OFF)
-  add_subdirectory(compression_libraries/culzss_)
-  set(SMASH_LIBRARIES ${SMASH_LIBRARIES} culzss)
-  set(SMASH_INCLUDES ${SMASH_INCLUDES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/compression_libraries/culzss_/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/compression_libraries/culzss_/CULZSS
-  )
-  set(SMASH_SOURCES ${SMASH_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/compression_libraries/culzss_/src/culzss_library.cpp
-  )
-  add_definitions(-DCULZSS)
-endif()
-
-if(NOT DIETGPU MATCHES OFF)
-  add_subdirectory(compression_libraries/dietgpu_)
-  set(SMASH_LIBRARIES ${SMASH_LIBRARIES} dietgpu)
-  set(SMASH_INCLUDES ${SMASH_INCLUDES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/compression_libraries/dietgpu_/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/compression_libraries/dietgpu_/dietgpu
-  )
-  set(SMASH_SOURCES ${SMASH_SOURCES}
-    ${CMAKE_CURRENT_SOURCE_DIR}/compression_libraries/dietgpu_/src/dietgpu_ans_library.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/compression_libraries/dietgpu_/src/dietgpu_float_library.cpp
-  )
-  add_definitions(-DDIETGPU)
-endif()
-
 if(NOT NVCOMP MATCHES OFF)
   find_library(NVCOMP_LIBRARY
     NAMES nvcomp
     HINTS "${CMAKE_CURRENT_SOURCE_DIR}/compression_libraries/nvcomp_/nvcomp/lib"
   )
   add_subdirectory(compression_libraries/nvcomp_)
-  set(SMASH_LIBRARIES ${SMASH_LIBRARIES} ${NVCOMP_LIBRARY} nvcomp_util)
-  set(SMASH_INCLUDES ${SMASH_INCLUDES}
+  set(GPU_SMASH_LIBRARIES ${GPU_SMASH_LIBRARIES} ${NVCOMP_LIBRARY} nvcomp_util)
+  set(GPU_SMASH_INCLUDES ${GPU_SMASH_INCLUDES}
     ${CMAKE_CURRENT_SOURCE_DIR}/compression_libraries/nvcomp_/include
     ${CMAKE_CURRENT_SOURCE_DIR}/compression_libraries/nvcomp_/nvcomp/include
   )
-  set(SMASH_SOURCES ${SMASH_SOURCES}
+  set(GPU_SMASH_SOURCES ${GPU_SMASH_SOURCES}
     ${CMAKE_CURRENT_SOURCE_DIR}/compression_libraries/nvcomp_/src/nvcomp_ans_library.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/compression_libraries/nvcomp_/src/nvcomp_batch_compressed.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/compression_libraries/nvcomp_/src/nvcomp_batch_uncompressed.cpp

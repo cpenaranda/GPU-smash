@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-// SMASH LIBRARIES
+// GPU-SMASH LIBRARIES
 #include <gpu_compression_library.hpp>
 
 class GpuCompressionLibraries {
